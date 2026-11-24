@@ -32,6 +32,7 @@ import {
   Sparkles,
   Home,
   Users,
+  AlertCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { HomestaySettings, HomestayUnit, PricingRule, PriceBreakdown, Booking } from '@/types';
@@ -73,6 +74,8 @@ export default function LiveCalendarBooking({
   const [paymentType, setPaymentType] = useState<'DEPOSIT' | 'FULL'>('DEPOSIT');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [sendReceiptViaWhatsApp, setSendReceiptViaWhatsApp] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // State flags
   const [copiedBank, setCopiedBank] = useState(false);
@@ -195,12 +198,18 @@ export default function LiveCalendarBooking({
   // Handle final submission
   const handleSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!guestName || !guestPhone) {
-      alert('Sila isi nama penuh dan nombor WhatsApp anda.');
+    setFormError(null);
+
+    if (!guestName.trim()) {
+      setFormError('Sila isi nama penuh anda di Ruangan 1.');
       return;
     }
-    if (!receiptFile) {
-      alert('Sila muat naik slip resit bayaran DuitNow / perbankan dalam talian sebagai bukti bayaran.');
+    if (!guestPhone.trim()) {
+      setFormError('Sila isi nombor WhatsApp anda di Ruangan 1.');
+      return;
+    }
+    if (!receiptFile && !sendReceiptViaWhatsApp) {
+      setFormError('Sila muat naik slip resit bayaran di bawah, ATAU tandakan pilihan untuk menghantar resit terus di WhatsApp.');
       return;
     }
 
@@ -227,7 +236,7 @@ export default function LiveCalendarBooking({
         amount_paid: amountToPay,
         balance_due: balanceDue,
         payment_method: 'DUITNOW_QR',
-        payment_receipt_url: receiptPreview || '',
+        payment_receipt_url: receiptPreview || (sendReceiptViaWhatsApp ? 'Dihantar terus melalui WhatsApp' : ''),
         status: 'PENDING_VERIFICATION',
         notes,
         created_at: new Date().toISOString(),
@@ -570,7 +579,7 @@ export default function LiveCalendarBooking({
               </div>
             </div>
 
-            <form onSubmit={handleSubmitBooking} className="space-y-6">
+            <form onSubmit={handleSubmitBooking} noValidate className="space-y-6">
               {/* Guest Details: NO ACCOUNT REQUIRED */}
               <div className="space-y-4">
                 <h4 className="text-sm font-bold uppercase text-slate-700 tracking-wider">
@@ -786,16 +795,31 @@ export default function LiveCalendarBooking({
 
                 {/* Receipt Upload Component */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Muat Naik Bukti Bayaran / Slip Resit Bank <span className="text-rose-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Muat Naik Bukti Bayaran / Slip Resit Bank
+                    </label>
+                    <span className="text-[11px] text-teal-700 font-semibold">
+                      (Pilihan: Upload di sini atau hantar di WhatsApp)
+                    </span>
+                  </div>
 
-                  <div className="border-2 border-dashed border-slate-300 hover:border-teal-500 rounded-2xl p-6 text-center bg-white cursor-pointer transition">
+                  <div
+                    className={`border-2 border-dashed rounded-2xl p-6 text-center bg-white cursor-pointer transition ${
+                      formError && !receiptFile && !sendReceiptViaWhatsApp
+                        ? 'border-rose-400 bg-rose-50/20'
+                        : receiptPreview
+                        ? 'border-teal-500 bg-teal-50/30'
+                        : 'border-slate-300 hover:border-teal-500'
+                    }`}
+                  >
                     <input
                       type="file"
-                      required
                       accept="image/*,application/pdf"
-                      onChange={handleFileChange}
+                      onChange={(e) => {
+                        handleFileChange(e);
+                        setFormError(null);
+                      }}
                       className="hidden"
                       id="receipt-upload"
                     />
@@ -825,8 +849,36 @@ export default function LiveCalendarBooking({
                       )}
                     </label>
                   </div>
+
+                  {/* Option to send directly in WhatsApp */}
+                  <div className="mt-3 flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <input
+                      type="checkbox"
+                      id="receipt-whatsapp-toggle"
+                      checked={sendReceiptViaWhatsApp}
+                      onChange={(e) => {
+                        setSendReceiptViaWhatsApp(e.target.checked);
+                        if (e.target.checked) setFormError(null);
+                      }}
+                      className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500 cursor-pointer"
+                    />
+                    <label
+                      htmlFor="receipt-whatsapp-toggle"
+                      className="text-xs text-slate-700 font-semibold cursor-pointer select-none"
+                    >
+                      Saya akan lampirkan gambar resit terus di dalam WhatsApp kepada pemilik
+                    </label>
+                  </div>
                 </div>
               </div>
+
+              {/* Error Banner */}
+              {formError && (
+                <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-bold flex items-center gap-2 animate-bounce">
+                  <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
 
               {/* Buttons */}
               <div className="pt-4 flex items-center justify-between gap-4">
