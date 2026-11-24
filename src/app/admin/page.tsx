@@ -18,10 +18,11 @@ import {
   Phone,
   Home,
   Save,
-  AlertTriangle,
+  Building2,
+  Filter,
 } from 'lucide-react';
-import { Booking, HomestaySettings, BlockedDate } from '@/types';
-import { DEFAULT_SETTINGS, INITIAL_BLOCKED_DATES } from '@/lib/mockData';
+import { Booking, HomestaySettings, BlockedDate, HomestayUnit } from '@/types';
+import { DEFAULT_SETTINGS, INITIAL_UNITS, INITIAL_BLOCKED_DATES } from '@/lib/mockData';
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,14 +31,19 @@ export default function AdminPage() {
 
   // Data states
   const [settings, setSettings] = useState<HomestaySettings>(DEFAULT_SETTINGS);
+  const [units, setUnits] = useState<HomestayUnit[]>(INITIAL_UNITS);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>(INITIAL_BLOCKED_DATES);
-  const [activeTab, setActiveTab] = useState<'bookings' | 'calendar' | 'rates'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'calendar' | 'units' | 'settings'>('bookings');
+
+  // Filter states
+  const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
 
   // Modal receipt viewer
   const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
 
   // New blocked date input
+  const [newBlockUnitId, setNewBlockUnitId] = useState<string>(INITIAL_UNITS[0].id);
   const [newBlockDate, setNewBlockDate] = useState('');
   const [newBlockReason, setNewBlockReason] = useState('Penyelenggaraan / Offline Booking');
 
@@ -47,20 +53,21 @@ export default function AdminPage() {
     if (savedBookings) {
       setBookings(JSON.parse(savedBookings));
     } else {
-      // Seed initial sample booking for owner review demonstration
       const sampleBooking: Booking = {
         id: 'book-sample-1',
         booking_code: 'HS-2611-8921',
+        unit_id: 'unit-villa-bayu',
+        unit_name: 'Villa Bayu (Private Pool)',
         guest_name: 'Faizal bin Mahmud',
         guest_phone: '0198765432',
-        guest_count: 6,
+        guest_count: 8,
         check_in: '2026-12-05',
         check_out: '2026-12-07',
         nights_count: 2,
-        base_amount: 700,
+        base_amount: 1040,
         peak_surcharge: 0,
-        security_deposit: 100,
-        total_amount: 800,
+        security_deposit: 150,
+        total_amount: 1190,
         payment_method: 'DUITNOW_QR',
         payment_receipt_url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80',
         status: 'PENDING_VERIFICATION',
@@ -70,6 +77,11 @@ export default function AdminPage() {
       };
       setBookings([sampleBooking]);
       localStorage.setItem('homestay_bookings', JSON.stringify([sampleBooking]));
+    }
+
+    const savedUnits = localStorage.getItem('homestay_units');
+    if (savedUnits) {
+      setUnits(JSON.parse(savedUnits));
     }
 
     const savedSettings = localStorage.getItem('homestay_settings');
@@ -104,12 +116,13 @@ export default function AdminPage() {
     localStorage.setItem('homestay_bookings', JSON.stringify(updated));
   };
 
-  // Add Blocked Date
+  // Add Blocked Date per Unit
   const handleAddBlockedDate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBlockDate) return;
     const newEntry: BlockedDate = {
       id: `block-${Date.now()}`,
+      unit_id: newBlockUnitId,
       date: newBlockDate,
       reason: newBlockReason,
       created_at: new Date().toISOString(),
@@ -117,24 +130,67 @@ export default function AdminPage() {
     const updated = [...blockedDates, newEntry];
     setBlockedDates(updated);
     localStorage.setItem('homestay_blocked_dates', JSON.stringify(updated));
+
+    // Update in unit's blocked dates array too
+    const updatedUnits = units.map((u) => {
+      if (u.id === newBlockUnitId) {
+        return {
+          ...u,
+          blocked_dates: Array.from(new Set([...u.blocked_dates, newBlockDate])),
+        };
+      }
+      return u;
+    });
+    setUnits(updatedUnits);
+    localStorage.setItem('homestay_units', JSON.stringify(updatedUnits));
+
     setNewBlockDate('');
   };
 
   // Delete Blocked Date
-  const handleDeleteBlockedDate = (id: string) => {
+  const handleDeleteBlockedDate = (id: string, dateStr: string, unitId: string) => {
     const updated = blockedDates.filter((b) => b.id !== id);
     setBlockedDates(updated);
     localStorage.setItem('homestay_blocked_dates', JSON.stringify(updated));
+
+    const updatedUnits = units.map((u) => {
+      if (u.id === unitId) {
+        return {
+          ...u,
+          blocked_dates: u.blocked_dates.filter((d) => d !== dateStr),
+        };
+      }
+      return u;
+    });
+    setUnits(updatedUnits);
+    localStorage.setItem('homestay_units', JSON.stringify(updatedUnits));
   };
 
-  // Save Settings
-  const handleSaveSettings = (e: React.FormEvent) => {
+  // Update Unit Rates
+  const handleUpdateUnitRate = (
+    unitId: string,
+    field: 'base_weekday_rate' | 'weekend_rate' | 'security_deposit',
+    value: number
+  ) => {
+    const updated = units.map((u) => (u.id === unitId ? { ...u, [field]: value } : u));
+    setUnits(updated);
+  };
+
+  // Save Units & Settings
+  const handleSaveAll = (e: React.FormEvent) => {
     e.preventDefault();
+    localStorage.setItem('homestay_units', JSON.stringify(units));
     localStorage.setItem('homestay_settings', JSON.stringify(settings));
-    alert('Tetapan dan kadar harga berjaya dikemaskini!');
+    alert('Semua kadar harga unit dan tetapan berjaya disimpan!');
   };
 
-  // LOGIN SCREEN IF NOT AUTHENTICATED
+  // Filter bookings
+  const filteredBookings =
+    selectedUnitFilter === 'all'
+      ? bookings
+      : bookings.filter((b) => b.unit_id === selectedUnitFilter);
+
+  // LOGIN SCREEN
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
@@ -145,7 +201,7 @@ export default function AdminPage() {
 
           <h2 className="text-2xl font-black tracking-tight">Portal Pemilik Homestay</h2>
           <p className="text-xs text-slate-400 mt-1.5">
-            Sila masukkan PIN 4-digit pemilik untuk mengakses panel kawalan.
+            Sila masukkan PIN 4-digit pemilik untuk mengakses panel kawalan pelbagai unit.
           </p>
 
           <form onSubmit={handlePinSubmit} className="mt-6 space-y-4">
@@ -184,7 +240,6 @@ export default function AdminPage() {
     );
   }
 
-  // AUTHENTICATED DASHBOARD
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800">
       {/* Top Navbar */}
@@ -196,7 +251,7 @@ export default function AdminPage() {
             </div>
             <div>
               <h1 className="font-extrabold text-base sm:text-lg leading-tight">
-                Dashboard Pemilik Homestay
+                Dashboard Pemilik (Multi-Unit)
               </h1>
               <span className="text-xs text-teal-400">{settings.homestay_name}</span>
             </div>
@@ -245,35 +300,82 @@ export default function AdminPage() {
             }`}
           >
             <Calendar className="w-4 h-4" />
-            Kunci Tarikh (Blocked Dates) ({blockedDates.length})
+            Kunci Tarikh Unit ({blockedDates.length})
           </button>
           <button
-            onClick={() => setActiveTab('rates')}
+            onClick={() => setActiveTab('units')}
             className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition ${
-              activeTab === 'rates'
+              activeTab === 'units'
+                ? 'bg-teal-700 text-white shadow-md'
+                : 'bg-white text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            Kadar Harga Unit ({units.length} Unit)
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition ${
+              activeTab === 'settings'
                 ? 'bg-teal-700 text-white shadow-md'
                 : 'bg-white text-slate-600 hover:bg-slate-200'
             }`}
           >
             <DollarSign className="w-4 h-4" />
-            Kadar Harga & Akaun DuitNow
+            Tetapan DuitNow & Bank
           </button>
         </div>
 
         {/* TAB 1: BOOKINGS MANAGEMENT */}
         {activeTab === 'bookings' && (
           <div className="space-y-6">
-            {bookings.length === 0 ? (
+            {/* Filter by Unit */}
+            <div className="flex items-center justify-between flex-wrap gap-3 bg-white p-4 rounded-2xl border border-slate-200">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                <Filter className="w-4 h-4 text-teal-600" />
+                Tapis Mengikut Unit:
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedUnitFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    selectedUnitFilter === 'all'
+                      ? 'bg-teal-700 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  Semua Unit ({bookings.length})
+                </button>
+                {units.map((u) => {
+                  const count = bookings.filter((b) => b.unit_id === u.id).length;
+                  return (
+                    <button
+                      key={u.id}
+                      onClick={() => setSelectedUnitFilter(u.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                        selectedUnitFilter === u.id
+                          ? 'bg-teal-700 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {u.name} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {filteredBookings.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
                 <Clock className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="font-bold text-slate-800 text-lg">Tiada Tempahan Buat Masa Ini</h3>
+                <h3 className="font-bold text-slate-800 text-lg">Tiada Tempahan Bagi Pilihan Ini</h3>
                 <p className="text-xs text-slate-500 mt-1">
                   Tempahan baharu daripada tetamu akan dipaparkan di sini secara automatik.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
-                {bookings.map((booking) => (
+                {filteredBookings.map((booking) => (
                   <div
                     key={booking.id}
                     className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition space-y-4"
@@ -286,6 +388,9 @@ export default function AdminPage() {
                           </span>
                           <span className="font-mono text-xs font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-700">
                             {booking.booking_code}
+                          </span>
+                          <span className="text-xs font-bold bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full">
+                            {booking.unit_name}
                           </span>
                         </div>
                         <a
@@ -401,15 +506,15 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 2: BLOCKED DATES MANAGEMENT */}
+        {/* TAB 2: BLOCKED DATES MANAGEMENT PER UNIT */}
         {activeTab === 'calendar' && (
           <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6">
             <div>
               <h3 className="text-lg font-black text-slate-900">
-                Sekat / Kunci Tarikh Kalendar Secara Manual
+                Sekat / Kunci Tarikh Kalendar Mengikut Unit
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Gunakan ciri ini jika anda menerima tempahan luar (cth: rakan/saudara) atau ingin menutup homestay untuk penyelenggaraan/pembersihan.
+                Kunci tarikh untuk satu unit tanpa menjejaskan kekosongan unit homestay yang lain.
               </p>
             </div>
 
@@ -419,9 +524,22 @@ export default function AdminPage() {
               className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-wrap items-center gap-3"
             >
               <div className="flex-grow min-w-[200px]">
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  Pilih Tarikh Kunci
-                </label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Pilih Unit</label>
+                <select
+                  value={newBlockUnitId}
+                  onChange={(e) => setNewBlockUnitId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-600 bg-white"
+                >
+                  {units.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex-grow min-w-[170px]">
+                <label className="block text-xs font-bold text-slate-600 mb-1">Tarikh Kunci</label>
                 <input
                   type="date"
                   required
@@ -431,10 +549,8 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="flex-grow min-w-[250px]">
-                <label className="block text-xs font-bold text-slate-600 mb-1">
-                  Sebab Kunci Tarikh
-                </label>
+              <div className="flex-grow min-w-[220px]">
+                <label className="block text-xs font-bold text-slate-600 mb-1">Sebab Kunci</label>
                 <input
                   type="text"
                   placeholder="Cth: Tempahan Offline / Servis Kolam"
@@ -464,93 +580,152 @@ export default function AdminPage() {
                 <p className="text-xs text-slate-400 italic">Tiada tarikh yang dikunci secara manual.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {blockedDates.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs"
-                    >
-                      <div>
-                        <div className="font-extrabold text-slate-900">{item.date}</div>
-                        <div className="text-[11px] text-slate-500">{item.reason}</div>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteBlockedDate(item.id)}
-                        className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition"
-                        title="Buka Semula Tarikh Ini"
+                  {blockedDates.map((item) => {
+                    const unitObj = units.find((u) => u.id === item.unit_id);
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                        <div>
+                          <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded block w-fit mb-1">
+                            {unitObj ? unitObj.name : 'Semua Unit'}
+                          </span>
+                          <div className="font-extrabold text-slate-900">{item.date}</div>
+                          <div className="text-[11px] text-slate-500">{item.reason}</div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteBlockedDate(item.id, item.date, item.unit_id)}
+                          className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition"
+                          title="Buka Semula Tarikh Ini"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* TAB 3: PRICING & DUITNOW CONFIGURATION */}
-        {activeTab === 'rates' && (
+        {/* TAB 3: UNITS RATES MANAGEMENT */}
+        {activeTab === 'units' && (
+          <form onSubmit={handleSaveAll} className="space-y-6">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    Pengurusan Kadar Harga Setiap Unit
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Tetapkan harga hari biasa (weekday), harga hujung minggu (weekend), dan deposit bagi setiap unit secara berasingan.
+                  </p>
+                </div>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-teal-700 hover:bg-teal-800 shadow-md transition flex items-center gap-1.5"
+                >
+                  <Save className="w-4 h-4" /> Simpan Semua Kadar
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                {units.map((unit) => (
+                  <div
+                    key={unit.id}
+                    className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+                      <div>
+                        <h4 className="font-black text-base text-slate-900">{unit.name}</h4>
+                        <span className="text-xs text-slate-500">
+                          Kapasiti: {unit.max_guests} Tetamu | {unit.bedrooms} Bilik Tidur | {unit.bathrooms} Bilik Air
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold bg-teal-100 text-teal-800 px-3 py-1 rounded-full">
+                        {unit.badge || 'Unit Selesa'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Kadar Hari Biasa (Isn - Kha) (RM)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={unit.base_weekday_rate}
+                          onChange={(e) =>
+                            handleUpdateUnitRate(
+                              unit.id,
+                              'base_weekday_rate',
+                              Number(e.target.value)
+                            )
+                          }
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold text-sm bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Kadar Hujung Minggu (Jum - Ahd) (RM)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={unit.weekend_rate}
+                          onChange={(e) =>
+                            handleUpdateUnitRate(unit.id, 'weekend_rate', Number(e.target.value))
+                          }
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold text-sm bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Deposit Keselamatan (RM)
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          value={unit.security_deposit}
+                          onChange={(e) =>
+                            handleUpdateUnitRate(
+                              unit.id,
+                              'security_deposit',
+                              Number(e.target.value)
+                            )
+                          }
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold text-sm bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB 4: DUITNOW & BANK SETTINGS */}
+        {activeTab === 'settings' && (
           <form
-            onSubmit={handleSaveSettings}
+            onSubmit={handleSaveAll}
             className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6"
           >
             <div>
               <h3 className="text-lg font-black text-slate-900">
-                Kadar Harga Automatik & Maklumat DuitNow QR
+                Maklumat Bank, DuitNow QR & Maklumat Pemilik
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Semua pertukaran di sini akan mengubah kiraan automatik di kalendar tetamu serta-merta.
+                Maklumat ini akan dipaparkan semasa proses pembayaran tetamu bagi semua unit.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Kadar Hari Biasa (Isnin - Khamis) (RM)
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={settings.base_weekday_rate}
-                  onChange={(e) =>
-                    setSettings({ ...settings, base_weekday_rate: Number(e.target.value) })
-                  }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Kadar Hujung Minggu (Jumaat - Ahad) (RM)
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={settings.weekend_rate}
-                  onChange={(e) =>
-                    setSettings({ ...settings, weekend_rate: Number(e.target.value) })
-                  }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Deposit Keselamatan (RM)
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={settings.security_deposit}
-                  onChange={(e) =>
-                    setSettings({ ...settings, security_deposit: Number(e.target.value) })
-                  }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                />
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Nama Bank</label>
                 <input
@@ -558,7 +733,7 @@ export default function AdminPage() {
                   required
                   value={settings.bank_name}
                   onChange={(e) => setSettings({ ...settings, bank_name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-medium text-sm"
                 />
               </div>
 
@@ -569,7 +744,7 @@ export default function AdminPage() {
                   required
                   value={settings.bank_account_no}
                   onChange={(e) => setSettings({ ...settings, bank_account_no: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-medium text-sm"
                 />
               </div>
 
@@ -584,7 +759,7 @@ export default function AdminPage() {
                   onChange={(e) =>
                     setSettings({ ...settings, bank_account_holder: e.target.value })
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-medium text-sm"
                 />
               </div>
             </div>
@@ -599,7 +774,7 @@ export default function AdminPage() {
                   required
                   value={settings.owner_phone}
                   onChange={(e) => setSettings({ ...settings, owner_phone: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-medium text-sm"
                 />
               </div>
 
@@ -613,7 +788,7 @@ export default function AdminPage() {
                   required
                   value={settings.admin_pin}
                   onChange={(e) => setSettings({ ...settings, admin_pin: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-sm"
                 />
               </div>
             </div>

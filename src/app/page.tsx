@@ -3,19 +3,21 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
+import UnitSelector from '@/components/UnitSelector';
+import LiveCalendarBooking from '@/components/LiveCalendarBooking';
 import Gallery from '@/components/Gallery';
 import Amenities from '@/components/Amenities';
-import LiveCalendarBooking from '@/components/LiveCalendarBooking';
 import Reviews from '@/components/Reviews';
 import LocationSection from '@/components/LocationSection';
 import FAQ from '@/components/FAQ';
 import Footer from '@/components/Footer';
-import { DEFAULT_SETTINGS, INITIAL_BLOCKED_DATES, INITIAL_PRICING_RULES } from '@/lib/mockData';
-import { HomestaySettings, BlockedDate, PricingRule } from '@/types';
+import { DEFAULT_SETTINGS, INITIAL_UNITS, INITIAL_PRICING_RULES } from '@/lib/mockData';
+import { HomestaySettings, HomestayUnit, PricingRule } from '@/types';
 
 export default function Home() {
   const [settings, setSettings] = useState<HomestaySettings>(DEFAULT_SETTINGS);
-  const [blockedDates, setBlockedDates] = useState<string[]>(['2026-11-28', '2026-11-29']);
+  const [units, setUnits] = useState<HomestayUnit[]>(INITIAL_UNITS);
+  const [selectedUnitId, setSelectedUnitId] = useState<string>(INITIAL_UNITS[0].id);
   const [pricingRules, setPricingRules] = useState<PricingRule[]>(INITIAL_PRICING_RULES);
 
   useEffect(() => {
@@ -25,12 +27,23 @@ export default function Home() {
       setSettings(JSON.parse(savedSettings));
     }
 
-    const savedBlocked = localStorage.getItem('homestay_blocked_dates');
-    if (savedBlocked) {
-      const parsed: BlockedDate[] = JSON.parse(savedBlocked);
-      setBlockedDates(parsed.map((b) => b.date));
+    const savedUnits = localStorage.getItem('homestay_units');
+    if (savedUnits) {
+      setUnits(JSON.parse(savedUnits));
     }
   }, []);
+
+  // Find currently selected unit
+  const selectedUnit = units.find((u) => u.id === selectedUnitId) || units[0];
+
+  const handleSelectUnit = (unitId: string) => {
+    setSelectedUnitId(unitId);
+    // Smooth scroll to booking section
+    const bookingEl = document.getElementById('tempah');
+    if (bookingEl) {
+      bookingEl.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <main className="min-h-screen flex flex-col bg-slate-50 selection:bg-teal-500 selection:text-white">
@@ -44,32 +57,47 @@ export default function Home() {
       <Hero
         homestayName={settings.homestay_name}
         tagline={settings.tagline}
-        baseRate={settings.base_weekday_rate}
+        units={units}
       />
 
-      {/* 3. Live Calendar & Frictionless Booking (Core Feature) */}
+      {/* 3. Pilihan Unit Homestay */}
+      <UnitSelector
+        units={units}
+        selectedUnitId={selectedUnit.id}
+        onSelectUnit={handleSelectUnit}
+      />
+
+      {/* 4. Live Calendar & Frictionless Booking (Per-Unit) */}
       <LiveCalendarBooking
         settings={settings}
-        blockedDates={blockedDates}
+        selectedUnit={selectedUnit}
+        allUnits={units}
+        onSelectUnit={handleSelectUnit}
         pricingRules={pricingRules}
       />
 
-      {/* 4. Photo Gallery */}
-      <Gallery />
+      {/* 5. Photo Gallery (Dynamic per Unit) */}
+      <Gallery
+        galleryItems={selectedUnit.gallery}
+        unitName={selectedUnit.name}
+      />
 
-      {/* 5. Amenities & Facilities */}
-      <Amenities />
+      {/* 6. Amenities & Facilities (Dynamic per Unit) */}
+      <Amenities
+        amenities={selectedUnit.amenities}
+        unitName={selectedUnit.name}
+      />
 
-      {/* 6. Guest Reviews & Ratings */}
+      {/* 7. Guest Reviews & Ratings */}
       <Reviews />
 
-      {/* 7. Location & Navigation */}
+      {/* 8. Location & Navigation */}
       <LocationSection settings={settings} />
 
-      {/* 8. FAQ */}
+      {/* 9. FAQ */}
       <FAQ settings={settings} />
 
-      {/* 9. Footer */}
+      {/* 10. Footer */}
       <Footer settings={settings} />
     </main>
   );

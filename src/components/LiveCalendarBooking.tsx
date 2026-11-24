@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   format,
   addMonths,
@@ -28,25 +28,29 @@ import {
   Copy,
   UploadCloud,
   FileCheck,
-  AlertCircle,
-  ExternalLink,
   Phone,
   Sparkles,
+  Home,
+  Users,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { HomestaySettings, PricingRule, PriceBreakdown, Booking } from '@/types';
+import { HomestaySettings, HomestayUnit, PricingRule, PriceBreakdown, Booking } from '@/types';
 import { calculateBookingPrice } from '@/lib/pricing';
 import { generateOwnerBookingWhatsAppUrl } from '@/lib/whatsapp';
 
 interface LiveCalendarBookingProps {
   settings: HomestaySettings;
-  blockedDates?: string[]; // Array of YYYY-MM-DD
+  selectedUnit: HomestayUnit;
+  allUnits: HomestayUnit[];
+  onSelectUnit: (unitId: string) => void;
   pricingRules?: PricingRule[];
 }
 
 export default function LiveCalendarBooking({
   settings,
-  blockedDates = ['2026-11-28', '2026-11-29'],
+  selectedUnit,
+  allUnits,
+  onSelectUnit,
   pricingRules = [],
 }: LiveCalendarBookingProps) {
   const today = startOfToday();
@@ -64,19 +68,26 @@ export default function LiveCalendarBooking({
   // Guest input form (No login needed!)
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
-  const [guestCount, setGuestCount] = useState(4);
+  const [guestCount, setGuestCount] = useState(selectedUnit.max_guests > 4 ? 4 : 2);
   const [notes, setNotes] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
 
-  // Temporary lock timer (10 mins)
-  const [lockExpires, setLockExpires] = useState<Date | null>(null);
+  // State flags
   const [copiedBank, setCopiedBank] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdBooking, setCreatedBooking] = useState<Booking | null>(null);
 
-  // Set of blocked dates for O(1) check
-  const blockedDatesSet = useMemo(() => new Set(blockedDates), [blockedDates]);
+  // Reset dates or validate when unit changes
+  useEffect(() => {
+    setCheckInDate(null);
+    setCheckOutDate(null);
+  }, [selectedUnit.id]);
+
+  // Set of blocked dates for the selected unit
+  const blockedDatesSet = useMemo(() => {
+    return new Set(selectedUnit.blocked_dates || []);
+  }, [selectedUnit]);
 
   // Check if a date is blocked or in the past
   const isDateUnavailable = (date: Date) => {
@@ -91,7 +102,7 @@ export default function LiveCalendarBooking({
 
     const dateStr = format(date, 'yyyy-MM-dd');
 
-    // Case 1: Neither date selected, or both already selected -> start fresh with CheckIn
+    // Case 1: Start fresh with CheckIn
     if (!checkInDate || (checkInDate && checkOutDate)) {
       setCheckInDate(dateStr);
       setCheckOutDate(null);
@@ -121,7 +132,9 @@ export default function LiveCalendarBooking({
       }
 
       if (hasConflict) {
-        alert('Terdapat tarikh yang telah ditempah di antara pilihan anda. Sila pilih julat tarikh yang lain.');
+        alert(
+          `Terdapat tarikh yang telah ditempah untuk ${selectedUnit.name} di antara pilihan anda. Sila pilih julat tarikh yang lain.`
+        );
         return;
       }
 
@@ -129,18 +142,22 @@ export default function LiveCalendarBooking({
     }
   };
 
-  // Realtime Price calculation
+  // Realtime Price calculation based on SELECTED UNIT's rates
   const priceBreakdown: PriceBreakdown | null = useMemo(() => {
     if (!checkInDate || !checkOutDate) return null;
-    return calculateBookingPrice(checkInDate, checkOutDate, settings, pricingRules);
-  }, [checkInDate, checkOutDate, settings, pricingRules]);
+    return calculateBookingPrice(
+      checkInDate,
+      checkOutDate,
+      selectedUnit.base_weekday_rate,
+      selectedUnit.weekend_rate,
+      selectedUnit.security_deposit,
+      pricingRules
+    );
+  }, [checkInDate, checkOutDate, selectedUnit, pricingRules]);
 
-  // Proceed to frictionless checkout
+  // Proceed to checkout
   const handleProceedToCheckout = () => {
     if (!checkInDate || !checkOutDate || !priceBreakdown) return;
-    // Set 10-minute temporary lock
-    const expires = new Date(Date.now() + 10 * 60 * 1000);
-    setLockExpires(expires);
     setBookingStep('CHECKOUT');
     window.scrollTo({ top: document.getElementById('tempah')?.offsetTop || 0, behavior: 'smooth' });
   };
@@ -176,11 +193,12 @@ export default function LiveCalendarBooking({
     setIsSubmitting(true);
 
     try {
-      // Simulate booking generation
       const bookingCode = `HS-${format(new Date(), 'yyMM')}-${Math.floor(1000 + Math.random() * 9000)}`;
       const newBooking: Booking = {
         id: `book-${Date.now()}`,
         booking_code: bookingCode,
+        unit_id: selectedUnit.id,
+        unit_name: selectedUnit.name,
         guest_name: guestName,
         guest_phone: guestPhone,
         guest_count: guestCount,
@@ -232,17 +250,41 @@ export default function LiveCalendarBooking({
     <section id="tempah" className="py-16 sm:py-24 bg-white relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-10">
+        <div className="text-center max-w-2xl mx-auto mb-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-800 text-xs font-bold uppercase tracking-wider mb-2">
             <CalendarIcon className="w-3.5 h-3.5 text-teal-600" />
-            Kalendar Langsung & Kiraan Automatik
+            Kalendar Langsung Mengikut Unit
           </div>
           <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            Pilih Tarikh, Semak Harga & Tempah Terus
+            Pilih Tarikh & Semak Harga Serta-Merta
           </h2>
           <p className="mt-2 text-slate-600 text-sm sm:text-base">
-            Tanpa perlu cipta akaun. Tarikh dikunci secara masa nyata untuk mengelakkan insiden <i>double book</i>.
+            Kekosongan kalendar dikunci secara berasingan untuk setiap unit bagi mengelakkan <i>double book</i>.
           </p>
+        </div>
+
+        {/* Unit Selector Quick Tabs on Calendar */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+          {allUnits.map((u) => {
+            const isCurrent = u.id === selectedUnit.id;
+            return (
+              <button
+                key={u.id}
+                onClick={() => onSelectUnit(u.id)}
+                className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition ${
+                  isCurrent
+                    ? 'bg-teal-700 text-white shadow-lg shadow-teal-700/25 ring-2 ring-teal-700'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Home className="w-4 h-4" />
+                <span>{u.name}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${isCurrent ? 'bg-teal-800 text-teal-100' : 'bg-slate-200 text-slate-600'}`}>
+                  RM{u.base_weekday_rate}/mlm
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* STEP 1: SELECTING DATES */}
@@ -250,12 +292,26 @@ export default function LiveCalendarBooking({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left 7 cols: Interactive Calendar */}
             <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8">
+              {/* Unit Info banner above calendar */}
+              <div className="mb-6 pb-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-teal-600">
+                    Kalendar Kekosongan:
+                  </span>
+                  <h3 className="text-lg font-black text-slate-900">{selectedUnit.name}</h3>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-slate-400 block">Kapasiti Maksimum:</span>
+                  <span className="text-xs font-bold text-slate-700">{selectedUnit.max_guests} Tetamu</span>
+                </div>
+              </div>
+
               {/* Calendar Month Header */}
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-lg sm:text-xl font-black text-slate-900">
+                  <h4 className="text-lg sm:text-xl font-black text-slate-900">
                     {format(currentMonth, 'MMMM yyyy')}
-                  </h3>
+                  </h4>
                   <p className="text-xs text-slate-500">Pilih tarikh check-in & check-out</p>
                 </div>
                 <div className="flex items-center gap-1">
@@ -277,7 +333,7 @@ export default function LiveCalendarBooking({
                 </div>
               </div>
 
-              {/* Day Labels (Isnin - Ahad) */}
+              {/* Day Labels */}
               <div className="grid grid-cols-7 gap-1 text-center mb-2">
                 {['Isn', 'Sel', 'Rab', 'Kha', 'Jum', 'Sab', 'Ahd'].map((day, idx) => (
                   <div
@@ -355,7 +411,7 @@ export default function LiveCalendarBooking({
                   <div className="w-3.5 h-3.5 rounded bg-slate-200 line-through text-[9px] flex items-center justify-center text-slate-500">
                     ✕
                   </div>
-                  <span>Penuh / Dikunci</span>
+                  <span>Penuh / Dikunci ({selectedUnit.name})</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3.5 h-3.5 rounded border border-slate-300" />
@@ -368,10 +424,15 @@ export default function LiveCalendarBooking({
             <div className="lg:col-span-5 bg-gradient-to-b from-slate-900 to-teal-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-48 h-48 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
 
-              <h3 className="text-xl font-black text-white flex items-center gap-2 mb-4">
-                <Zap className="w-5 h-5 text-amber-400" />
-                Ringkasan Tempahan
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-black text-white flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-amber-400" />
+                  Ringkasan Tempahan
+                </h3>
+                <span className="text-xs bg-teal-800/80 text-teal-200 px-2.5 py-1 rounded-lg font-bold">
+                  {selectedUnit.name}
+                </span>
+              </div>
 
               {/* Dates Box */}
               <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-white/10 border border-white/10 backdrop-blur-md mb-5">
@@ -400,14 +461,14 @@ export default function LiveCalendarBooking({
                 <div className="space-y-2.5 text-xs sm:text-sm border-t border-white/10 pt-4">
                   {priceBreakdown.weekdayNights > 0 && (
                     <div className="flex justify-between text-slate-300">
-                      <span>Hari Biasa ({priceBreakdown.weekdayNights} malam × RM{settings.base_weekday_rate}):</span>
+                      <span>Hari Biasa ({priceBreakdown.weekdayNights} malam × RM{selectedUnit.base_weekday_rate}):</span>
                       <span className="font-semibold text-white">RM {priceBreakdown.weekdayTotal.toFixed(2)}</span>
                     </div>
                   )}
 
                   {priceBreakdown.weekendNights > 0 && (
                     <div className="flex justify-between text-slate-300">
-                      <span>Hujung Minggu ({priceBreakdown.weekendNights} malam × RM{settings.weekend_rate}):</span>
+                      <span>Hujung Minggu ({priceBreakdown.weekendNights} malam × RM{selectedUnit.weekend_rate}):</span>
                       <span className="font-semibold text-white">RM {priceBreakdown.weekendTotal.toFixed(2)}</span>
                     </div>
                   )}
@@ -441,7 +502,7 @@ export default function LiveCalendarBooking({
                     className="w-full mt-6 py-3.5 px-4 rounded-xl font-black text-sm text-slate-900 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 shadow-lg shadow-amber-400/25 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
                   >
                     <ShieldCheck className="w-4 h-4 text-slate-900" />
-                    Kunci Tarikh & Terus Bayar
+                    Kunci Tarikh {selectedUnit.name} & Terus Bayar
                   </button>
 
                   <p className="text-[11px] text-center text-teal-200/70 mt-2">
@@ -452,7 +513,7 @@ export default function LiveCalendarBooking({
                 <div className="py-8 text-center border-t border-white/10">
                   <Clock className="w-8 h-8 text-teal-400/60 mx-auto mb-2" />
                   <p className="text-xs text-slate-300">
-                    Sila pilih tarikh Check-in dan Check-out di kalendar untuk melihat kiraan harga automatik.
+                    Sila pilih tarikh Check-in dan Check-out di kalendar untuk melihat kiraan harga automatik bagi <b>{selectedUnit.name}</b>.
                   </p>
                 </div>
               )}
@@ -470,7 +531,7 @@ export default function LiveCalendarBooking({
                   Langkah Terakhir: Bayaran Terus
                 </span>
                 <h3 className="text-2xl font-black text-slate-900">
-                  Isi Maklumat & Imbas DuitNow QR
+                  Tempahan: {selectedUnit.name}
                 </h3>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold">
@@ -482,7 +543,8 @@ export default function LiveCalendarBooking({
             {/* Booking Summary Pill */}
             <div className="my-6 p-4 rounded-2xl bg-teal-50/70 border border-teal-200 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
               <div>
-                <span className="text-slate-500 font-medium">Penginapan:</span>{' '}
+                <span className="text-slate-500 font-medium">Unit:</span>{' '}
+                <b className="text-teal-900">{selectedUnit.name}</b> |{' '}
                 <b className="text-slate-900">{checkInDate}</b> hingga{' '}
                 <b className="text-slate-900">{checkOutDate}</b> ({priceBreakdown.nights} malam)
               </div>
@@ -531,19 +593,16 @@ export default function LiveCalendarBooking({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Anggaran Bilangan Tetamu
+                      Anggaran Bilangan Tetamu (Maks: {selectedUnit.max_guests} orang)
                     </label>
-                    <select
+                    <input
+                      type="number"
+                      min={1}
+                      max={selectedUnit.max_guests}
                       value={guestCount}
                       onChange={(e) => setGuestCount(Number(e.target.value))}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm font-medium bg-white"
-                    >
-                      {[2, 4, 6, 8, 10, 12].map((num) => (
-                        <option key={num} value={num}>
-                          {num} orang tetamu
-                        </option>
-                      ))}
-                    </select>
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm font-medium"
+                    />
                   </div>
 
                   <div>
@@ -704,14 +763,22 @@ export default function LiveCalendarBooking({
                 Terima Kasih, {createdBooking.guest_name}!
               </h3>
               <p className="text-sm text-slate-600 mt-2">
-                Kod Tempahan Rasmi Anda:{' '}
+                Unit Tempahan:{' '}
                 <span className="font-extrabold text-teal-800 bg-teal-50 px-2.5 py-1 rounded-md">
+                  {createdBooking.unit_name}
+                </span>
+                {' '}| Kod:{' '}
+                <span className="font-mono font-bold text-slate-700">
                   {createdBooking.booking_code}
                 </span>
               </p>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-left text-xs sm:text-sm space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Unit Homestay:</span>
+                <span className="font-bold text-teal-900">{createdBooking.unit_name}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Tarikh Penginapan:</span>
                 <span className="font-bold text-slate-800">
@@ -742,7 +809,7 @@ export default function LiveCalendarBooking({
                 Hantar Notifikasi Terus ke WhatsApp Pemilik
               </a>
               <p className="text-xs text-slate-400">
-                Pautan di atas akan membuka WhatsApp anda dan menghantar butiran tempahan terus kepada pengurus homestay.
+                Pautan di atas akan membuka WhatsApp anda dan menghantar butiran tempahan berserta nama unit terus kepada pengurus homestay.
               </p>
             </div>
 

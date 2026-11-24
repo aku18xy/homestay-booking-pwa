@@ -1,4 +1,4 @@
-import { Booking, HomestaySettings } from '@/types';
+import { Booking } from '@/types';
 
 /**
  * Jana teks WhatsApp berformat kemas untuk dihantar kepada Pemilik Homestay
@@ -7,7 +7,6 @@ export function generateOwnerBookingWhatsAppUrl(
   booking: Booking,
   ownerPhone: string = '60123456789'
 ): string {
-  // Format nombor telefon: pastikan bermula dengan 60 (Malaysia) tanpa tanda '+'
   let cleanPhone = ownerPhone.replace(/[^0-9]/g, '');
   if (cleanPhone.startsWith('0')) {
     cleanPhone = '6' + cleanPhone;
@@ -16,6 +15,7 @@ export function generateOwnerBookingWhatsAppUrl(
   const message = `*TEMPAHAN HOMESTAY BAHARU!* 🏠✨
 
 *Kod Tempahan:* ${booking.booking_code}
+*Pilihan Unit:* ${booking.unit_name}
 *Nama Tetamu:* ${booking.guest_name}
 *No. WhatsApp Tetamu:* ${booking.guest_phone}
 *Bil. Tetamu:* ${booking.guest_count} orang
@@ -31,7 +31,7 @@ export function generateOwnerBookingWhatsAppUrl(
 ${booking.payment_receipt_url ? `📄 *Resit Pembayaran:* ${booking.payment_receipt_url}` : '*(Resit belum dimuat naik)*'}
 ${booking.notes ? `📝 *Catatan:* ${booking.notes}` : ''}
 
-_Sila semak akaun bank anda dan buka Dashboard Pengurusan Homestay untuk mengesahkan tempahan ini._`;
+_Sila semak akaun bank anda dan buka Dashboard Pemilik untuk mengesahkan tempahan ini._`;
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 }
@@ -41,6 +41,7 @@ _Sila semak akaun bank anda dan buka Dashboard Pengurusan Homestay untuk mengesa
  */
 export function generateGuestInquiryWhatsAppUrl(
   homestayName: string,
+  unitName?: string,
   ownerPhone: string = '60123456789'
 ): string {
   let cleanPhone = ownerPhone.replace(/[^0-9]/g, '');
@@ -48,6 +49,7 @@ export function generateGuestInquiryWhatsAppUrl(
     cleanPhone = '6' + cleanPhone;
   }
 
-  const message = `Hai Pengurus ${homestayName}, saya berminat untuk membuat pertanyaan berkenaan homestay.`;
+  const unitText = unitName ? ` berkenaan *${unitName}*` : '';
+  const message = `Hai Pengurus ${homestayName}, saya berminat untuk membuat pertanyaan${unitText}.`;
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 }

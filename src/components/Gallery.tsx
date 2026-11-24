@@ -1,69 +1,44 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Image as ImageIcon, Sparkles, Maximize2, X } from 'lucide-react';
+import { GalleryItem } from '@/types';
+import { Sparkles, Maximize2, X, Image as ImageIcon } from 'lucide-react';
 
-interface GalleryItem {
-  id: number;
-  title: string;
-  category: 'kolam' | 'bilik' | 'ruang' | 'dapur';
-  imageUrl: string;
-  description: string;
+interface GalleryProps {
+  galleryItems: GalleryItem[];
+  unitName: string;
 }
 
-const GALLERY_ITEMS: GalleryItem[] = [
-  {
-    id: 1,
-    title: 'Kolam Renang Persendirian',
-    category: 'kolam',
-    imageUrl: 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1000&q=80',
-    description: 'Kolam renang peribadi khas untuk keluarga mandi-manda dengan selamat dan privasi penuh.',
-  },
-  {
-    id: 2,
-    title: 'Bilik Utama (Master Bedroom)',
-    category: 'bilik',
-    imageUrl: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80',
-    description: 'Katil King saiz empuk, penghawa dingin sejuk, bilik air bersambung & pemandangan kolam.',
-  },
-  {
-    id: 3,
-    title: 'Ruang Tamu Utama yang Luas',
-    category: 'ruang',
-    imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1000&q=80',
-    description: 'Sofa moden yang selesa, Smart TV 55 inci bersama Netflix & YouTube percuma.',
-  },
-  {
-    id: 4,
-    title: 'Bilik Tidur Kedua (Queen Bed)',
-    category: 'bilik',
-    imageUrl: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1000&q=80',
-    description: 'Katil Queen berkualiti hotel, almari pakaian dan pendingin hawa.',
-  },
-  {
-    id: 5,
-    title: 'Dapur Lengkap & Ruang Makan',
-    category: 'dapur',
-    imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=1000&q=80',
-    description: 'Peti sejuk dua pintu, periuk nasi elektrik, microwave, penapis air Coway dan pinggan mangkuk.',
-  },
-  {
-    id: 6,
-    title: 'Ruang Santai & BBQ Luaran',
-    category: 'kolam',
-    imageUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=80',
-    description: 'Meja santai tepi kolam untuk sarapan pagi dan set pit BBQ percuma.',
-  },
-];
-
-export default function Gallery() {
+export default function Gallery({ galleryItems, unitName }: GalleryProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('semua');
   const [previewImage, setPreviewImage] = useState<GalleryItem | null>(null);
 
+  // Extract unique categories from this unit's gallery
+  const categories = ['semua', ...Array.from(new Set(galleryItems.map((g) => g.category)))];
+
   const filteredItems =
     selectedCategory === 'semua'
-      ? GALLERY_ITEMS
-      : GALLERY_ITEMS.filter((item) => item.category === selectedCategory);
+      ? galleryItems
+      : galleryItems.filter((item) => item.category === selectedCategory);
+
+  const getCategoryLabel = (cat: string) => {
+    switch (cat) {
+      case 'semua':
+        return 'Semua Sudut';
+      case 'kolam':
+        return 'Kolam Renang';
+      case 'bilik':
+        return 'Bilik Tidur';
+      case 'ruang':
+        return 'Ruang Tamu';
+      case 'dapur':
+        return 'Dapur & Makan';
+      case 'luaran':
+        return 'Laman & Luaran';
+      default:
+        return cat.toUpperCase();
+    }
+  };
 
   return (
     <section id="galeri" className="py-16 sm:py-24 bg-white">
@@ -71,37 +46,33 @@ export default function Gallery() {
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-bold uppercase tracking-wider mb-2">
             <Sparkles className="w-3.5 h-3.5" />
-            Galeri Suasana Homestay
+            Galeri Foto: {unitName}
           </div>
           <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            Ruang Elegan & Selesa Untuk Keluarga Anda
+            Suasana Eksklusif di {unitName}
           </h2>
           <p className="mt-2 text-slate-600 text-sm sm:text-base">
-            Setiap sudut direka khas untuk memastikan percutian anda sekeluarga tenang, selesa dan penuh kenangan indah.
+            Lihat ruang dalaman, kemudahan dan pemandangan sebenar yang menanti ketibaan anda.
           </p>
 
           {/* Filter Tabs */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
-            {[
-              { id: 'semua', label: 'Semua Sudut' },
-              { id: 'kolam', label: 'Kolam & Luaran' },
-              { id: 'bilik', label: 'Bilik Tidur' },
-              { id: 'ruang', label: 'Ruang Tamu' },
-              { id: 'dapur', label: 'Dapur & Meja Makan' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setSelectedCategory(tab.id)}
-                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
-                  selectedCategory === tab.id
-                    ? 'bg-teal-700 text-white shadow-md shadow-teal-700/20'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {categories.length > 2 && (
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                    selectedCategory === cat
+                      ? 'bg-teal-700 text-white shadow-md shadow-teal-700/20'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {getCategoryLabel(cat)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Photos Grid */}

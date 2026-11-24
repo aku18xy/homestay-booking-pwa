@@ -22,7 +22,7 @@ export default function FAQ({ settings }: FAQProps) {
     },
     {
       q: 'Bila deposit keselamatan akan dikembalikan?',
-      a: `Deposit keselamatan (RM ${settings.security_deposit}) akan dipindahkan semula terus ke akaun bank anda dalam tempoh 24 jam selepas waktu check-out selepas pemeriksaan kebersihan & fasiliti selesai.`,
+      a: 'Deposit keselamatan (RM50 - RM150 mengikut unit) akan dipindahkan semula terus ke akaun bank anda dalam tempoh 24 jam selepas waktu check-out selepas pemeriksaan kebersihan & fasiliti selesai.',
     },
     {
       q: 'Adakah kolam renang dikongsi dengan orang lain?',
@@ -30,7 +30,7 @@ export default function FAQ({ settings }: FAQProps) {
     },
     {
       q: 'Berapakah kapasiti maksimum tetamu yang dibenarkan?',
-      a: `Kapasiti optimum dan selesa adalah sehingga ${settings.max_guests} orang tetamu termasuk kanak-kanak. Sekiranya ada pertambahan, sila maklumkan kepada pihak pengurus terlebih dahulu.`,
+      a: 'Kapasiti bergantung kepada pilihan unit anda: dari 4 orang tetamu (Studio Kasih) sehingga 14 orang tetamu (Villa Bayu). Sila pilih unit yang sesuai dengan bilangan keluarga anda.',
     },
     {
       q: 'Bolehkah membuat aktiviti BBQ?',

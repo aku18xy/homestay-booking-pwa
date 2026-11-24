@@ -1,16 +1,14 @@
 import { format, addDays, parseISO, isFriday, isSaturday } from 'date-fns';
-import { HomestaySettings, PricingRule, PriceBreakdown } from '@/types';
+import { PricingRule, PriceBreakdown } from '@/types';
 
 export function calculateBookingPrice(
   checkInStr: string,
   checkOutStr: string,
-  settings: Partial<HomestaySettings> = {},
+  weekdayRate: number = 250,
+  weekendRate: number = 350,
+  securityDeposit: number = 100,
   pricingRules: PricingRule[] = []
 ): PriceBreakdown {
-  const weekdayRate = settings.base_weekday_rate ?? 250;
-  const weekendRate = settings.weekend_rate ?? 350;
-  const securityDeposit = settings.security_deposit ?? 100;
-
   const checkIn = parseISO(checkInStr);
   const checkOut = parseISO(checkOutStr);
 

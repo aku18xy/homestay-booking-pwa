@@ -5,9 +5,44 @@ export type BookingStatus =
   | 'CANCELLED'
   | 'REJECTED';
 
+export interface GalleryItem {
+  id: number;
+  title: string;
+  category: 'kolam' | 'bilik' | 'ruang' | 'dapur' | 'luaran';
+  imageUrl: string;
+  description: string;
+}
+
+export interface AmenityItem {
+  name: string;
+  desc: string;
+  iconName: 'Waves' | 'Wind' | 'Wifi' | 'Tv' | 'Flame' | 'Droplets' | 'UtensilsCrossed' | 'Car' | 'Shirt' | 'Coffee' | 'Shield' | 'Sparkles' | 'TreePine' | 'Bath';
+}
+
+export interface HomestayUnit {
+  id: string;
+  name: string;
+  slug: string;
+  badge?: string;
+  tagline: string;
+  description: string;
+  max_guests: number;
+  bedrooms: number;
+  bathrooms: number;
+  base_weekday_rate: number;
+  weekend_rate: number;
+  security_deposit: number;
+  featured_image: string;
+  gallery: GalleryItem[];
+  amenities: AmenityItem[];
+  blocked_dates: string[]; // YYYY-MM-DD
+}
+
 export interface Booking {
   id: string;
   booking_code: string;
+  unit_id: string;
+  unit_name: string;
   guest_name: string;
   guest_phone: string;
   guest_email?: string;
@@ -30,6 +65,7 @@ export interface Booking {
 
 export interface BlockedDate {
   id: string;
+  unit_id: string; // Mengaitkan tarikh kunci kepada unit khusus
   date: string; // YYYY-MM-DD
   reason?: string;
   created_at: string;
@@ -37,6 +73,7 @@ export interface BlockedDate {
 
 export interface PricingRule {
   id: string;
+  unit_id?: string;
   name: string;
   date_start: string; // YYYY-MM-DD
   date_end: string;   // YYYY-MM-DD
@@ -57,12 +94,8 @@ export interface HomestaySettings {
   bank_account_no: string;
   bank_account_holder: string;
   duitnow_qr_url: string;
-  base_weekday_rate: number;
-  weekend_rate: number;
-  security_deposit: number;
   check_in_time: string;
   check_out_time: string;
-  max_guests: number;
   admin_pin: string;
 }
 

@@ -39,6 +39,12 @@ export default function Navbar({
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center space-x-6">
             <a
+              href="#pilihan-unit"
+              className="text-sm font-medium text-slate-600 hover:text-teal-700 transition"
+            >
+              Pilihan Unit
+            </a>
+            <a
               href="#galeri"
               className="text-sm font-medium text-slate-600 hover:text-teal-700 transition"
             >
@@ -119,6 +125,13 @@ export default function Navbar({
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-5 space-y-2.5">
+          <a
+            href="#pilihan-unit"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block text-sm font-medium text-slate-700 py-1.5"
+          >
+            Pilihan Unit
+          </a>
           <a
             href="#galeri"
             onClick={() => setMobileMenuOpen(false)}

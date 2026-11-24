@@ -1,44 +1,57 @@
 -- =====================================================================
--- SISTEM TEMPAHAN HOMESTAY (CUSTOM PWA) - DATABASE SCHEMA (SUPABASE)
+-- SISTEM TEMPAHAN HOMESTAY (CUSTOM PWA) - MULTI-UNIT DATABASE SCHEMA
 -- =====================================================================
 
--- 1. EXTENSIONS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. HOMESTAY SETTINGS TABLE (Konfigurasi Utama Pemilik)
+-- 1. HOMESTAY GENERAL SETTINGS
 CREATE TABLE IF NOT EXISTS homestay_settings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    homestay_name TEXT NOT NULL DEFAULT 'Seri Idaman Homestay',
-    tagline TEXT DEFAULT 'Percutian Selesa, Nyaman & Mendamaikan Seisi Keluarga',
-    address TEXT DEFAULT 'No. 12, Jalan Idaman 3, Taman Seri Idaman, 43000 Kajang, Selangor',
-    waze_url TEXT DEFAULT 'https://waze.com/ul',
-    google_maps_url TEXT DEFAULT 'https://maps.google.com',
+    homestay_name TEXT NOT NULL DEFAULT 'D''Seri Bayu Homestay & Chalet',
+    tagline TEXT DEFAULT 'Koleksi Penginapan Percutian Keluarga & Acara Santai',
+    address TEXT DEFAULT 'No. 18, Jalan Impian Murni 2, Saujana Impian, 43000 Kajang, Selangor',
+    waze_url TEXT DEFAULT 'https://waze.com/ul/hw2834j8v3',
+    google_maps_url TEXT DEFAULT 'https://maps.google.com/?q=Saujana+Impian+Kajang',
     owner_phone TEXT NOT NULL DEFAULT '60123456789',
-    owner_name TEXT NOT NULL DEFAULT 'Pengurus Homestay',
+    owner_name TEXT NOT NULL DEFAULT 'En. Razak & Pn. Aisyah',
     bank_name TEXT NOT NULL DEFAULT 'Maybank',
-    bank_account_no TEXT NOT NULL DEFAULT '123456789012',
-    bank_account_holder TEXT NOT NULL DEFAULT 'SERI IDAMAN ENTERPRISE',
-    duitnow_qr_url TEXT DEFAULT '/images/duitnow-sample.png',
-    base_weekday_rate NUMERIC(10, 2) NOT NULL DEFAULT 250.00,
-    weekend_rate NUMERIC(10, 2) NOT NULL DEFAULT 350.00,
-    security_deposit NUMERIC(10, 2) NOT NULL DEFAULT 100.00,
+    bank_account_no TEXT NOT NULL DEFAULT '562834019283',
+    bank_account_holder TEXT NOT NULL DEFAULT 'D SERI BAYU ENTERPRISE',
+    duitnow_qr_url TEXT DEFAULT 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=DuitNow-DSeriBayu-562834019283',
     check_in_time TEXT NOT NULL DEFAULT '3:00 PM',
     check_out_time TEXT NOT NULL DEFAULT '12:00 PM',
-    max_guests INTEGER NOT NULL DEFAULT 10,
     admin_pin TEXT NOT NULL DEFAULT '8899',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Insert Default Setting if empty
-INSERT INTO homestay_settings (id) 
-SELECT '00000000-0000-0000-0000-000000000001'::uuid
-WHERE NOT EXISTS (SELECT 1 FROM homestay_settings);
+-- 2. HOMESTAY UNITS TABLE (Pelbagai Unit di Bawah Satu Pemilik)
+CREATE TABLE IF NOT EXISTS homestay_units (
+    id TEXT PRIMARY KEY, -- Cth: 'unit-villa-bayu', 'unit-chalet-damai'
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    badge TEXT,
+    tagline TEXT,
+    description TEXT,
+    max_guests INTEGER NOT NULL DEFAULT 8,
+    bedrooms INTEGER NOT NULL DEFAULT 3,
+    bathrooms INTEGER NOT NULL DEFAULT 2,
+    base_weekday_rate NUMERIC(10, 2) NOT NULL DEFAULT 250.00,
+    weekend_rate NUMERIC(10, 2) NOT NULL DEFAULT 350.00,
+    security_deposit NUMERIC(10, 2) NOT NULL DEFAULT 100.00,
+    featured_image TEXT NOT NULL,
+    gallery JSONB DEFAULT '[]'::jsonb,
+    amenities JSONB DEFAULT '[]'::jsonb,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- 3. BOOKINGS TABLE (Jadual Tempahan Tetamu)
+-- 3. BOOKINGS TABLE (Mengaitkan Tempahan dengan Unit Tertentu)
 CREATE TABLE IF NOT EXISTS bookings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_code TEXT UNIQUE NOT NULL,
+    unit_id TEXT NOT NULL REFERENCES homestay_units(id) ON DELETE CASCADE,
+    unit_name TEXT NOT NULL,
     guest_name TEXT NOT NULL,
     guest_phone TEXT NOT NULL,
     guest_email TEXT,
@@ -59,23 +72,24 @@ CREATE TABLE IF NOT EXISTS bookings (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index for date queries to ensure rapid live calendar lookups
-CREATE INDEX IF NOT EXISTS idx_bookings_dates ON bookings (check_in, check_out, status);
-CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings (status);
+CREATE INDEX IF NOT EXISTS idx_bookings_unit_dates ON bookings (unit_id, check_in, check_out, status);
 
--- 4. BLOCKED DATES TABLE (Tarikh Dikunci Secara Manual oleh Pemilik)
+-- 4. BLOCKED DATES TABLE (Kunci Tarikh Per-Unit)
 CREATE TABLE IF NOT EXISTS blocked_dates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    date DATE UNIQUE NOT NULL,
+    unit_id TEXT NOT NULL REFERENCES homestay_units(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
     reason TEXT DEFAULT 'OFFLINE_BOOKING',
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (unit_id, date) -- Memastikan tiada duplikasi kunci bagi unit sama
 );
 
-CREATE INDEX IF NOT EXISTS idx_blocked_dates_date ON blocked_dates (date);
+CREATE INDEX IF NOT EXISTS idx_blocked_dates_unit_date ON blocked_dates (unit_id, date);
 
--- 5. PRICING RULES (Kadar Puncak / Cuti Umum Khusus)
+-- 5. PRICING RULES (Kadar Puncak Cuti Umum)
 CREATE TABLE IF NOT EXISTS pricing_rules (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    unit_id TEXT REFERENCES homestay_units(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     date_start DATE NOT NULL,
     date_end DATE NOT NULL,
@@ -83,23 +97,3 @@ CREATE TABLE IF NOT EXISTS pricing_rules (
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
--- 6. STORAGE BUCKET FOR RECEIPTS
--- Note: Sila aktifkan bucket 'receipts' (public read-access for images or signed URLs)
--- INSERT INTO storage.buckets (id, name, public) VALUES ('receipts', 'receipts', true) ON CONFLICT DO NOTHING;
-
--- 7. ROW LEVEL SECURITY (RLS) POLICIES
-ALTER TABLE homestay_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE blocked_dates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pricing_rules ENABLE ROW LEVEL SECURITY;
-
--- Allow public read of settings, blocked dates & pricing
-CREATE POLICY "Public read settings" ON homestay_settings FOR SELECT USING (true);
-CREATE POLICY "Public read blocked dates" ON blocked_dates FOR SELECT USING (true);
-CREATE POLICY "Public read pricing rules" ON pricing_rules FOR SELECT USING (true);
-
--- Allow public to create booking & view confirmed/locked dates
-CREATE POLICY "Public create booking" ON bookings FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public read booking calendar status" ON bookings FOR SELECT USING (true);
-CREATE POLICY "Public update booking receipt" ON bookings FOR UPDATE USING (true);
