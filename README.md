@@ -2,6 +2,9 @@
 
 Sistem tempahan homestay moden berasaskan web (Progressive Web App) dengan integrasi kalendar masa nyata, kiraan harga dinamik, pembayaran terus DuitNow QR, dan notifikasi tempahan terus ke WhatsApp pemilik.
 
+🌐 **Laman Web Rasmi (Live Demo):** [https://homestay-booking-pwa.vercel.app](https://homestay-booking-pwa.vercel.app)  
+🔒 **Owner Admin Portal:** [https://homestay-booking-pwa.vercel.app/admin](https://homestay-booking-pwa.vercel.app/admin) *(PIN Lalai: `8899`)*
+
 ---
 
 ## 🚀 Ciri-Ciri Utama
