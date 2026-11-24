@@ -37,7 +37,7 @@ export default function Hero({ homestayName, tagline, units }: HeroProps) {
 
           {/* Subtitle */}
           <p className="text-base sm:text-lg text-teal-100/90 leading-relaxed max-w-2xl mx-auto font-normal">
-            {tagline}. Pilihan banglo kolam renang persendirian, chalet taman santai, dan studio suite moden dengan fasiliti penuh.
+            {tagline}. Pilihan Rumah Utama Keluarga 4 bilik, Unit Transit Pekerja Westport, dan Studio Santai Laguna dengan fasiliti lengkap & selesa.
           </p>
 
           {/* Highlights feature pills */}

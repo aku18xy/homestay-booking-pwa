@@ -1,7 +1,7 @@
 {
-  "name": "D'Seri Bayu Homestay",
-  "short_name": "Homestay",
-  "description": "Sistem Tempahan Pantas Homestay Tanpa Daftar Akaun & Bayaran DuitNow",
+  "name": "Jadi Homestay Pulau Indah",
+  "short_name": "Jadi Homestay",
+  "description": "Aplikasi Tempahan Pantas Jadi Homestay Pulau Indah, Klang, Selangor.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

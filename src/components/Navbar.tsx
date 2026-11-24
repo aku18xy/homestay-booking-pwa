@@ -10,7 +10,7 @@ interface NavbarProps {
 }
 
 export default function Navbar({
-  homestayName = "D'Seri Bayu Homestay",
+  homestayName = "Jadi Homestay",
   ownerPhone = '60123456789',
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

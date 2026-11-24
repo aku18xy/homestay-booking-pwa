@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: "D'Seri Bayu Homestay | Tempahan Mudah, Cepat & Selesa",
+  title: "Jadi Homestay Pulau Indah | Penginapan Selesa Seisi Keluarga & Para Pekerja",
   description:
-    'Homestay percutian keluarga moden dengan kolam renang peribadi. Tempah serta-merta tanpa daftar akaun, bayar terus melalui DuitNow QR.',
+    'Jadi Homestay terletak di Pulau Indah, Selangor. Menawarkan servis sewaan jangka pendek yang selesa untuk seisi keluarga dan para pekerja berhampiran Westport dan Pelabuhan Klang.',
   manifest: '/manifest.json',
   icons: {
     icon: '/icons/icon-192x192.png',

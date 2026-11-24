@@ -22,19 +22,19 @@ export default function FAQ({ settings }: FAQProps) {
     },
     {
       q: 'Bila deposit keselamatan akan dikembalikan?',
-      a: 'Deposit keselamatan (RM50 - RM150 mengikut unit) akan dipindahkan semula terus ke akaun bank anda dalam tempoh 24 jam selepas waktu check-out selepas pemeriksaan kebersihan & fasiliti selesai.',
+      a: 'Deposit keselamatan (RM50 - RM100 mengikut unit) akan dipindahkan semula terus ke akaun bank anda dalam tempoh 24 jam selepas waktu check-out selepas pemeriksaan kebersihan & fasiliti selesai.',
     },
     {
-      q: 'Adakah kolam renang dikongsi dengan orang lain?',
-      a: 'Tidak! Kolam renang adalah 100% persendirian (private) untuk anda dan keluarga anda sahaja sepanjang tempoh penginapan.',
+      q: 'Adakah ruang parkir luas dan berpagar?',
+      a: 'Ya! Setiap unit di Jadi Homestay Pulau Indah mempunyai kawasan parkir sendiri yang selamat, berpagar dan boleh memuatkan kenderaan dengan selesa.',
     },
     {
       q: 'Berapakah kapasiti maksimum tetamu yang dibenarkan?',
-      a: 'Kapasiti bergantung kepada pilihan unit anda: dari 4 orang tetamu (Studio Kasih) sehingga 14 orang tetamu (Villa Bayu). Sila pilih unit yang sesuai dengan bilangan keluarga anda.',
+      a: 'Kapasiti bergantung kepada pilihan unit anda: dari 4 orang tetamu (Studio Santai Laguna) sehingga 14 orang tetamu (Rumah Utama Keluarga). Sila pilih unit yang sesuai dengan bilangan keluarga atau pekerja anda.',
     },
     {
-      q: 'Bolehkah membuat aktiviti BBQ?',
-      a: 'Ya, set pit BBQ lengkap disediakan percuma di tepi kolam renang. Anda hanya perlu membawa bahan makanan dan arang sendiri.',
+      q: 'Bolehkah memasak di dalam homestay?',
+      a: 'Ya, dapur dilengkapi dengan peti sejuk, dapur gas memasak, periuk nasi elektrik, cerek dan pinggan mangkuk lengkap.',
     },
   ];
 

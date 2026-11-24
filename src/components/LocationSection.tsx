@@ -10,10 +10,10 @@ interface LocationSectionProps {
 
 export default function LocationSection({ settings }: LocationSectionProps) {
   const NEARBY_PLACES = [
-    { name: 'Pintu Masuk Lebuhraya SILK / PLUS', time: '5 minit' },
-    { name: 'Stesen MRT / Komuter', time: '7 minit' },
-    { name: 'Pusat Membeli-belah & Pasar Raya', time: '8 minit' },
-    { name: 'Restoran, Kafe & Kedai Runcit', time: '2 minit jalan kaki' },
+    { name: 'Zon Industri & Pelabuhan Westport', time: '5 - 8 minit' },
+    { name: 'Laguna Park & Jeti Memancing Pulau Indah', time: '4 minit' },
+    { name: 'Lebuhraya SKVE & KESAS', time: '8 minit' },
+    { name: 'Restoran Ikan Bakar & Kedai Runcit Kg Telok Nipah', time: '2 minit' },
   ];
 
   return (
