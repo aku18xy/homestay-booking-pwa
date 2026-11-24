@@ -68,6 +68,9 @@ export default function AdminPage() {
         peak_surcharge: 0,
         security_deposit: 150,
         total_amount: 1190,
+        payment_type: 'DEPOSIT',
+        amount_paid: 150,
+        balance_due: 1040,
         payment_method: 'DUITNOW_QR',
         payment_receipt_url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80',
         status: 'PENDING_VERIFICATION',
@@ -404,7 +407,17 @@ export default function AdminPage() {
                       </div>
 
                       {/* Status Badge */}
-                      <div>
+                      <div className="flex items-center gap-2">
+                        {booking.payment_type === 'DEPOSIT' ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            Bayar Deposit Sahaja
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            Bayar Penuh
+                          </span>
+                        )}
+
                         {booking.status === 'PENDING_VERIFICATION' && (
                           <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5" /> Menunggu Pengesahan Owner
@@ -437,12 +450,24 @@ export default function AdminPage() {
                         <b className="text-slate-800 text-xs">{booking.guest_count} Orang</b>
                       </div>
                       <div className="p-2.5 rounded-xl bg-slate-50">
-                        <span className="text-slate-400 block font-medium">Jumlah Bayaran</span>
-                        <b className="text-teal-800 text-sm font-black">
-                          RM {booking.total_amount.toFixed(2)}
-                        </b>
-                        <span className="text-[10px] text-slate-500 block">
-                          (Deposit: RM{booking.security_deposit})
+                        <span className="text-slate-400 block font-medium">Status Bayaran</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-[10px] text-slate-500">Dibayar:</span>
+                          <b className="text-teal-800 text-xs font-black">
+                            RM {(booking.amount_paid ?? booking.total_amount).toFixed(2)}
+                          </b>
+                        </div>
+                        {booking.payment_type === 'DEPOSIT' && (booking.balance_due ?? 0) > 0 ? (
+                          <span className="text-[10px] text-amber-700 font-bold block">
+                            Baki Check-in: RM {booking.balance_due.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-emerald-700 font-bold block">
+                            Baki: RM 0.00 (Penuh)
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-400 block">
+                          Total: RM {booking.total_amount.toFixed(2)}
                         </span>
                       </div>
                       <div className="p-2.5 rounded-xl bg-slate-50 flex items-center justify-between">

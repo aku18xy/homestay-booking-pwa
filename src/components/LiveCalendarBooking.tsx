@@ -70,6 +70,7 @@ export default function LiveCalendarBooking({
   const [guestPhone, setGuestPhone] = useState('');
   const [guestCount, setGuestCount] = useState(selectedUnit.max_guests > 4 ? 4 : 2);
   const [notes, setNotes] = useState('');
+  const [paymentType, setPaymentType] = useState<'DEPOSIT' | 'FULL'>('DEPOSIT');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
 
@@ -155,6 +156,19 @@ export default function LiveCalendarBooking({
     );
   }, [checkInDate, checkOutDate, selectedUnit, pricingRules]);
 
+  // Kiraan Pilihan Bayaran: Deposit vs Penuh
+  const depositAmount = selectedUnit.security_deposit || 100;
+  const amountToPay = priceBreakdown
+    ? paymentType === 'DEPOSIT'
+      ? depositAmount
+      : priceBreakdown.total
+    : 0;
+  const balanceDue = priceBreakdown
+    ? paymentType === 'DEPOSIT'
+      ? priceBreakdown.total - depositAmount
+      : 0
+    : 0;
+
   // Proceed to checkout
   const handleProceedToCheckout = () => {
     if (!checkInDate || !checkOutDate || !priceBreakdown) return;
@@ -209,6 +223,9 @@ export default function LiveCalendarBooking({
         peak_surcharge: priceBreakdown!.peakSurcharge,
         security_deposit: priceBreakdown!.securityDeposit,
         total_amount: priceBreakdown!.total,
+        payment_type: paymentType,
+        amount_paid: amountToPay,
+        balance_due: balanceDue,
         payment_method: 'DUITNOW_QR',
         payment_receipt_url: receiptPreview || '',
         status: 'PENDING_VERIFICATION',
@@ -622,9 +639,92 @@ export default function LiveCalendarBooking({
 
               {/* Payment Section: DuitNow QR & Bank Info */}
               <div className="pt-6 border-t border-slate-200 space-y-5">
-                <h4 className="text-sm font-bold uppercase text-slate-700 tracking-wider">
-                  2. Bayaran Terus ke Akaun Owner (DuitNow QR)
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold uppercase text-slate-700 tracking-wider">
+                    2. Bayaran Terus ke Akaun Owner (DuitNow QR)
+                  </h4>
+                  <span className="text-xs text-slate-500 font-medium">
+                    Pilih bayar deposit atau penuh
+                  </span>
+                </div>
+
+                {/* Pilihan Bayaran: Deposit vs Penuh */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-2">
+                    Pilih Jumlah Bayaran Sekarang <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option 1: Bayar Deposit */}
+                    <div
+                      onClick={() => setPaymentType('DEPOSIT')}
+                      className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex items-start gap-3 ${
+                        paymentType === 'DEPOSIT'
+                          ? 'border-teal-600 bg-teal-50/70 shadow-sm ring-2 ring-teal-600/20'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        id="pay-deposit"
+                        name="paymentType"
+                        checked={paymentType === 'DEPOSIT'}
+                        onChange={() => setPaymentType('DEPOSIT')}
+                        className="mt-1 w-4 h-4 text-teal-600 focus:ring-teal-500"
+                      />
+                      <label htmlFor="pay-deposit" className="cursor-pointer block flex-grow">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-sm text-slate-900">
+                            Bayar Deposit Sahaja
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                            Kunci Tarikh
+                          </span>
+                        </div>
+                        <div className="text-xl font-black text-teal-800 mt-1">
+                          RM {depositAmount.toFixed(2)}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                          Baki <b>RM {balanceDue.toFixed(2)}</b> dijelaskan semasa atau sebelum check-in.
+                        </p>
+                      </label>
+                    </div>
+
+                    {/* Option 2: Bayar Penuh */}
+                    <div
+                      onClick={() => setPaymentType('FULL')}
+                      className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex items-start gap-3 ${
+                        paymentType === 'FULL'
+                          ? 'border-teal-600 bg-teal-50/70 shadow-sm ring-2 ring-teal-600/20'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        id="pay-full"
+                        name="paymentType"
+                        checked={paymentType === 'FULL'}
+                        onChange={() => setPaymentType('FULL')}
+                        className="mt-1 w-4 h-4 text-teal-600 focus:ring-teal-500"
+                      />
+                      <label htmlFor="pay-full" className="cursor-pointer block flex-grow">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-sm text-slate-900">
+                            Bayar Jumlah Penuh
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                            Selesai Semua
+                          </span>
+                        </div>
+                        <div className="text-xl font-black text-teal-800 mt-1">
+                          RM {priceBreakdown.total.toFixed(2)}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                          Selesai penginapan ({priceBreakdown.nights} malam) + deposit keselamatan.
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col md:flex-row items-center gap-6">
                   {/* QR Image */}
@@ -668,9 +768,18 @@ export default function LiveCalendarBooking({
                       Nama Pemegang: <b>{settings.bank_account_holder}</b>
                     </div>
 
-                    <div className="text-xs font-bold text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200">
-                      Jumlah Tepat Perlu Dipindahkan:{' '}
-                      <span className="text-base font-black">RM {priceBreakdown.total.toFixed(2)}</span>
+                    <div className="text-xs font-bold text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                      <div>
+                        Jumlah Tepat Perlu Dipindahkan ({paymentType === 'DEPOSIT' ? 'Deposit Sahaja' : 'Bayaran Penuh'}):
+                      </div>
+                      <div className="text-xl font-black text-amber-900 mt-0.5">
+                        RM {amountToPay.toFixed(2)}
+                      </div>
+                      {paymentType === 'DEPOSIT' && (
+                        <div className="text-[11px] font-medium text-amber-700 mt-0.5">
+                          (Baki RM {balanceDue.toFixed(2)} perlu dibayar semasa atau sebelum check-in)
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -786,8 +895,28 @@ export default function LiveCalendarBooking({
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Jumlah Bayaran:</span>
+                <span className="text-slate-500">Pilihan Bayaran:</span>
+                <span className="font-bold text-slate-800">
+                  {createdBooking.payment_type === 'DEPOSIT'
+                    ? 'Bayaran Deposit Sahaja (Kunci Tarikh)'
+                    : 'Bayaran Penuh (Selesai)'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Jumlah Dibayar Sekarang:</span>
                 <span className="font-bold text-teal-800">
+                  RM {createdBooking.amount_paid.toFixed(2)}
+                </span>
+              </div>
+              {createdBooking.payment_type === 'DEPOSIT' && (
+                <div className="flex justify-between text-amber-700 bg-amber-50 p-2 rounded-lg font-bold">
+                  <span>Baki Perlu Dibayar Semasa Check-in:</span>
+                  <span>RM {createdBooking.balance_due.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between pt-1 border-t border-slate-200">
+                <span className="text-slate-500">Jumlah Keseluruhan Tempahan:</span>
+                <span className="font-bold text-slate-700">
                   RM {createdBooking.total_amount.toFixed(2)}
                 </span>
               </div>

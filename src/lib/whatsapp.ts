@@ -12,6 +12,9 @@ export function generateOwnerBookingWhatsAppUrl(
     cleanPhone = '6' + cleanPhone;
   }
 
+  const isDeposit = booking.payment_type === 'DEPOSIT';
+  const paymentTypeLabel = isDeposit ? 'Bayaran Deposit Sahaja (Kunci Tarikh)' : 'Bayaran Penuh (Full Payment)';
+
   const message = `*TEMPAHAN HOMESTAY BAHARU!* 🏠✨
 
 *Kod Tempahan:* ${booking.booking_code}
@@ -24,7 +27,9 @@ export function generateOwnerBookingWhatsAppUrl(
 📅 *Tarikh Check-out:* ${booking.check_out}
 🌙 *Bilangan Malam:* ${booking.nights_count} malam
 
-💰 *Jumlah Bayaran:* RM ${booking.total_amount.toFixed(2)}
+💵 *Pilihan Bayaran:* ${paymentTypeLabel}
+💰 *Jumlah Telah Dibayar Sekarang:* RM ${booking.amount_paid.toFixed(2)}
+${isDeposit ? `⏳ *Baki Bayaran Semasa Check-in:* RM ${booking.balance_due.toFixed(2)}\n` : ''}📊 *Jumlah Keseluruhan Tempahan:* RM ${booking.total_amount.toFixed(2)}
 (Termasuk Deposit Keselamatan: RM ${booking.security_deposit.toFixed(2)})
 
 *Status:* ${booking.status === 'PENDING_VERIFICATION' ? 'Menunggu Pengesahan Bayaran DuitNow' : booking.status}

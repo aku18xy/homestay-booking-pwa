@@ -54,6 +54,9 @@ export interface Booking {
   peak_surcharge: number;
   security_deposit: number;
   total_amount: number;
+  payment_type: 'DEPOSIT' | 'FULL';
+  amount_paid: number;
+  balance_due: number;
   payment_method: string;
   payment_receipt_url?: string;
   status: BookingStatus;
