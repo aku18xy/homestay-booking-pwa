@@ -336,18 +336,31 @@ export default function AdminPage() {
   // Delete unit
   const handleDeleteUnit = (unitId: string) => {
     if (units.length <= 1) {
-      alert('Anda perlu mempunyai sekurang-kurangnya satu (1) unit kediaman berdaftar.');
+      alert('Perhatian: Anda perlu mempunyai sekurang-kurangnya satu (1) unit kediaman aktif di dalam sistem. Unit terakhir tidak boleh dibuang.');
       return;
     }
     const unitToDelete = units.find((u) => u.id === unitId);
-    if (!confirm(`Adakah anda pasti ingin memadam unit "${unitToDelete?.name}"?`)) return;
+    if (!unitToDelete) return;
+
+    const confirmed = confirm(
+      `PENGESAHAN: Adakah anda pasti ingin membuang unit "${unitToDelete.name}"?\n\nSemua butiran, kadar harga, dan galeri bagi unit ini akan dikeluarkan daripada sistem web.`
+    );
+    if (!confirmed) return;
 
     const updated = units.filter((u) => u.id !== unitId);
     setUnits(updated);
-    setSelectedEditUnitId(updated[0].id);
+    if (selectedEditUnitId === unitId || !updated.some((u) => u.id === selectedEditUnitId)) {
+      setSelectedEditUnitId(updated[0].id);
+    }
+    if (newBlockUnitId === unitId) {
+      setNewBlockUnitId(updated[0].id);
+    }
+    if (selectedUnitFilter === unitId) {
+      setSelectedUnitFilter('all');
+    }
     localStorage.setItem('homestay_units', JSON.stringify(updated));
-    setSaveSuccessMsg('Unit kediaman telah dipadam.');
-    setTimeout(() => setSaveSuccessMsg(null), 3000);
+    setSaveSuccessMsg(`Unit "${unitToDelete.name}" telah berjaya dibuang.`);
+    setTimeout(() => setSaveSuccessMsg(null), 3500);
   };
 
   // Save Units & Settings
@@ -872,32 +885,51 @@ export default function AdminPage() {
                 {units.map((u) => {
                   const isSelected = u.id === currentEditUnit.id;
                   return (
-                    <button
+                    <div
                       key={u.id}
-                      type="button"
                       onClick={() => setSelectedEditUnitId(u.id)}
-                      className={`px-4 py-3 rounded-2xl text-left transition flex-shrink-0 border ${
+                      className={`px-4 py-3 rounded-2xl text-left transition flex-shrink-0 border cursor-pointer flex items-center justify-between gap-3 ${
                         isSelected
                           ? 'bg-teal-700 text-white border-teal-700 shadow-md ring-2 ring-teal-500/50'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-sm block leading-tight">{u.name}</span>
-                        {u.badge && (
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              isSelected ? 'bg-white/20 text-white' : 'bg-teal-100 text-teal-800'
-                            }`}
-                          >
-                            {u.badge}
-                          </span>
-                        )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm block leading-tight">{u.name}</span>
+                          {u.badge && (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                isSelected ? 'bg-white/20 text-white' : 'bg-teal-100 text-teal-800'
+                              }`}
+                            >
+                              {u.badge}
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-[11px] block mt-1 ${isSelected ? 'text-teal-100' : 'text-slate-400'}`}>
+                          Maks {u.max_guests} Tetamu • {u.bedrooms} Bilik • {u.gallery?.length || 0} Foto
+                        </span>
                       </div>
-                      <span className={`text-[11px] block mt-1 ${isSelected ? 'text-teal-100' : 'text-slate-400'}`}>
-                        Maks {u.max_guests} Tetamu • {u.bedrooms} Bilik • {u.gallery?.length || 0} Foto
-                      </span>
-                    </button>
+
+                      {units.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteUnit(u.id);
+                          }}
+                          title={`Buang unit ${u.name}`}
+                          className={`p-1.5 rounded-lg transition ml-1 flex-shrink-0 ${
+                            isSelected
+                              ? 'text-rose-200 hover:text-white hover:bg-rose-600/40'
+                              : 'text-rose-500 hover:text-rose-700 hover:bg-rose-100'
+                          }`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -907,7 +939,7 @@ export default function AdminPage() {
             <form onSubmit={handleSaveUnitDetails} className="space-y-6">
               {/* SECTION 1: BUTIRAN ASAS & SPESIFIKASI */}
               <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
                   <div>
                     <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-teal-600" />
@@ -917,12 +949,24 @@ export default function AdminPage() {
                       Maklumat ini akan dipaparkan di katalog pilihan unit dan kad tempahan tetamu.
                     </p>
                   </div>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl font-bold text-xs bg-teal-700 hover:bg-teal-800 text-white shadow-sm transition flex items-center gap-1.5"
-                  >
-                    <Save className="w-3.5 h-3.5" /> Simpan Perubahan
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {units.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUnit(currentEditUnit.id)}
+                        className="px-3.5 py-2 rounded-xl font-bold text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 shadow-sm transition flex items-center gap-1.5"
+                        title="Buang unit kediaman ini"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Buang Unit
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl font-bold text-xs bg-teal-700 hover:bg-teal-800 text-white shadow-sm transition flex items-center gap-1.5"
+                    >
+                      <Save className="w-3.5 h-3.5" /> Simpan Perubahan
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1333,7 +1377,7 @@ export default function AdminPage() {
                     onClick={() => handleDeleteUnit(currentEditUnit.id)}
                     className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition flex items-center justify-center gap-1.5"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Padam Unit Ini
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Buang Unit Ini ({currentEditUnit.name})
                   </button>
                 )}
               </div>
@@ -1368,16 +1412,28 @@ export default function AdminPage() {
                     key={unit.id}
                     className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4"
                   >
-                    <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
                       <div>
                         <h4 className="font-black text-base text-slate-900">{unit.name}</h4>
                         <span className="text-xs text-slate-500">
                           Kapasiti: {unit.max_guests} Tetamu | {unit.bedrooms} Bilik Tidur | {unit.bathrooms} Bilik Air
                         </span>
                       </div>
-                      <span className="text-xs font-bold bg-teal-100 text-teal-800 px-3 py-1 rounded-full">
-                        {unit.badge || 'Unit Selesa'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold bg-teal-100 text-teal-800 px-3 py-1 rounded-full">
+                          {unit.badge || 'Unit Selesa'}
+                        </span>
+                        {units.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUnit(unit.id)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition flex items-center gap-1"
+                            title={`Buang unit ${unit.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Buang Unit
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
