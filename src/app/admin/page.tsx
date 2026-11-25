@@ -20,8 +20,18 @@ import {
   Save,
   Building2,
   Filter,
+  Camera,
+  Image as ImageIcon,
+  Upload,
+  Check,
+  Users,
+  BedDouble,
+  Bath,
+  Tag,
+  AlertCircle,
+  PlusCircle,
 } from 'lucide-react';
-import { Booking, HomestaySettings, BlockedDate, HomestayUnit } from '@/types';
+import { Booking, HomestaySettings, BlockedDate, HomestayUnit, GalleryItem } from '@/types';
 import { DEFAULT_SETTINGS, INITIAL_UNITS, INITIAL_BLOCKED_DATES } from '@/lib/mockData';
 
 export default function AdminPage() {
@@ -34,10 +44,18 @@ export default function AdminPage() {
   const [units, setUnits] = useState<HomestayUnit[]>(INITIAL_UNITS);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>(INITIAL_BLOCKED_DATES);
-  const [activeTab, setActiveTab] = useState<'bookings' | 'calendar' | 'units' | 'settings'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'calendar' | 'unit_editor' | 'units' | 'settings'>('bookings');
 
   // Filter states
   const [selectedUnitFilter, setSelectedUnitFilter] = useState<string>('all');
+
+  // Unit Editor states
+  const [selectedEditUnitId, setSelectedEditUnitId] = useState<string>(INITIAL_UNITS[0].id);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [newPhotoTitle, setNewPhotoTitle] = useState('');
+  const [newPhotoCategory, setNewPhotoCategory] = useState<'bilik' | 'ruang' | 'dapur' | 'luaran' | 'kolam'>('bilik');
+  const [newPhotoUrl, setNewPhotoUrl] = useState('');
+  const [newPhotoDesc, setNewPhotoDesc] = useState('');
 
   // Modal receipt viewer
   const [viewReceiptUrl, setViewReceiptUrl] = useState<string | null>(null);
@@ -179,6 +197,159 @@ export default function AdminPage() {
     setUnits(updated);
   };
 
+  // Update specific field in unit (name, badge, tagline, description, max_guests, etc.)
+  const handleUpdateUnitField = (unitId: string, field: keyof HomestayUnit, value: any) => {
+    const updated = units.map((u) => (u.id === unitId ? { ...u, [field]: value } : u));
+    setUnits(updated);
+  };
+
+  // Handle featured image file upload via FileReader
+  const handleFeaturedImageUpload = (e: React.ChangeEvent<HTMLInputElement>, unitId: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          handleUpdateUnitField(unitId, 'featured_image', reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle new gallery photo upload via FileReader
+  const handleNewGalleryPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setNewPhotoUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Add photo to unit gallery
+  const handleAddGalleryPhoto = (unitId: string) => {
+    if (!newPhotoUrl.trim()) {
+      alert('Sila masukkan URL gambar atau muat naik fail gambar.');
+      return;
+    }
+    const title = newPhotoTitle.trim() || 'Foto Unit';
+    const newGalleryItem: GalleryItem = {
+      id: Date.now(),
+      title,
+      category: newPhotoCategory,
+      imageUrl: newPhotoUrl.trim(),
+      description: newPhotoDesc.trim() || title,
+    };
+
+    const updated = units.map((u) => {
+      if (u.id === unitId) {
+        return {
+          ...u,
+          gallery: [...(u.gallery || []), newGalleryItem],
+        };
+      }
+      return u;
+    });
+
+    setUnits(updated);
+    localStorage.setItem('homestay_units', JSON.stringify(updated));
+    setNewPhotoTitle('');
+    setNewPhotoUrl('');
+    setNewPhotoDesc('');
+    setSaveSuccessMsg('Foto baharu berjaya ditambah ke galeri unit!');
+    setTimeout(() => setSaveSuccessMsg(null), 3000);
+  };
+
+  // Delete photo from unit gallery
+  const handleDeleteGalleryPhoto = (unitId: string, photoId: number) => {
+    if (!confirm('Adakah anda pasti ingin memadam foto ini daripada galeri?')) return;
+    const updated = units.map((u) => {
+      if (u.id === unitId) {
+        return {
+          ...u,
+          gallery: (u.gallery || []).filter((g) => g.id !== photoId),
+        };
+      }
+      return u;
+    });
+    setUnits(updated);
+    localStorage.setItem('homestay_units', JSON.stringify(updated));
+    setSaveSuccessMsg('Foto telah dipadam daripada galeri.');
+    setTimeout(() => setSaveSuccessMsg(null), 3000);
+  };
+
+  // Save current unit details
+  const handleSaveUnitDetails = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    localStorage.setItem('homestay_units', JSON.stringify(units));
+    setSaveSuccessMsg('Semua butiran unit dan galeri berjaya disimpan!');
+    setTimeout(() => setSaveSuccessMsg(null), 3500);
+  };
+
+  // Add brand new unit
+  const handleAddNewUnit = () => {
+    const newId = `unit-${Date.now()}`;
+    const newUnit: HomestayUnit = {
+      id: newId,
+      name: 'Unit Kediaman Baharu',
+      slug: `unit-${Date.now()}`,
+      badge: 'Unit Baharu',
+      tagline: 'Penginapan Selesa & Lengkap di Pulau Indah',
+      description: 'Penerangan lengkap mengenai keistimewaan dan kelengkapan unit kediaman ini.',
+      max_guests: 6,
+      bedrooms: 2,
+      bathrooms: 1,
+      base_weekday_rate: 200,
+      weekend_rate: 260,
+      security_deposit: 50,
+      featured_image: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1000&q=80',
+      blocked_dates: [],
+      gallery: [
+        {
+          id: Date.now(),
+          title: 'Ruang Tamu Selesa',
+          category: 'ruang',
+          imageUrl: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1000&q=80',
+          description: 'Ruang tamu berhawa dingin untuk santai seisi keluarga.',
+        },
+      ],
+      amenities: [
+        { name: 'Pendingin Hawa Aircond', desc: 'Bilik tidur berhawa dingin', iconName: 'Wind' },
+        { name: 'WiFi Berkelajuan Tinggi', desc: 'Internet percuma', iconName: 'Wifi' },
+        { name: 'Parkir Berpagar', desc: 'Kawasan letak kenderaan selamat', iconName: 'Car' },
+      ],
+    };
+
+    const updated = [...units, newUnit];
+    setUnits(updated);
+    setSelectedEditUnitId(newId);
+    localStorage.setItem('homestay_units', JSON.stringify(updated));
+    setSaveSuccessMsg('Unit kediaman baharu berjaya dicipta! Sila kemaskini butiran di bawah.');
+    setTimeout(() => setSaveSuccessMsg(null), 4000);
+  };
+
+  // Delete unit
+  const handleDeleteUnit = (unitId: string) => {
+    if (units.length <= 1) {
+      alert('Anda perlu mempunyai sekurang-kurangnya satu (1) unit kediaman berdaftar.');
+      return;
+    }
+    const unitToDelete = units.find((u) => u.id === unitId);
+    if (!confirm(`Adakah anda pasti ingin memadam unit "${unitToDelete?.name}"?`)) return;
+
+    const updated = units.filter((u) => u.id !== unitId);
+    setUnits(updated);
+    setSelectedEditUnitId(updated[0].id);
+    localStorage.setItem('homestay_units', JSON.stringify(updated));
+    setSaveSuccessMsg('Unit kediaman telah dipadam.');
+    setTimeout(() => setSaveSuccessMsg(null), 3000);
+  };
+
   // Save Units & Settings
   const handleSaveAll = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,6 +363,9 @@ export default function AdminPage() {
     selectedUnitFilter === 'all'
       ? bookings
       : bookings.filter((b) => b.unit_id === selectedUnitFilter);
+
+  // Active unit for editor tab
+  const currentEditUnit = units.find((u) => u.id === selectedEditUnitId) || units[0];
 
   // LOGIN SCREEN
   if (!isAuthenticated) {
@@ -306,6 +480,17 @@ export default function AdminPage() {
             Kunci Tarikh Unit ({blockedDates.length})
           </button>
           <button
+            onClick={() => setActiveTab('unit_editor')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition ${
+              activeTab === 'unit_editor'
+                ? 'bg-teal-700 text-white shadow-md'
+                : 'bg-white text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Camera className="w-4 h-4" />
+            Butiran & Galeri Unit ({units.length})
+          </button>
+          <button
             onClick={() => setActiveTab('units')}
             className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition ${
               activeTab === 'units'
@@ -314,7 +499,7 @@ export default function AdminPage() {
             }`}
           >
             <Building2 className="w-4 h-4" />
-            Kadar Harga Unit ({units.length} Unit)
+            Kadar Harga Cepat
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -635,7 +820,528 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TAB 3: UNITS RATES MANAGEMENT */}
+        {/* TAB 3: UNIT DETAILS & GALLERY EDITOR */}
+        {activeTab === 'unit_editor' && currentEditUnit && (
+          <div className="space-y-6">
+            {/* Success Toast Banner */}
+            {saveSuccessMsg && (
+              <div className="p-4 rounded-2xl bg-emerald-600 text-white font-bold text-sm shadow-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-white" />
+                  <span>{saveSuccessMsg}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSaveSuccessMsg(null)}
+                  className="p-1 hover:bg-white/20 rounded-lg text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Header and Unit Selection Bar */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-bold uppercase tracking-wider mb-1.5">
+                    <Camera className="w-3.5 h-3.5" />
+                    Pengurusan Unit Kediaman & Galeri
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                    Kemaskini Butiran & Galeri Unit
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Pilih unit kediaman di bawah untuk mengemaskini maklumat, kapasiti tetamu, kadar sewaan, dan koleksi foto galeri.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleAddNewUnit}
+                    type="button"
+                    className="px-4 py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" /> Tambah Unit Baharu
+                  </button>
+                </div>
+              </div>
+
+              {/* Unit Selector Pills */}
+              <div className="flex items-center gap-2.5 overflow-x-auto pb-2">
+                {units.map((u) => {
+                  const isSelected = u.id === currentEditUnit.id;
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => setSelectedEditUnitId(u.id)}
+                      className={`px-4 py-3 rounded-2xl text-left transition flex-shrink-0 border ${
+                        isSelected
+                          ? 'bg-teal-700 text-white border-teal-700 shadow-md ring-2 ring-teal-500/50'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm block leading-tight">{u.name}</span>
+                        {u.badge && (
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-teal-100 text-teal-800'
+                            }`}
+                          >
+                            {u.badge}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-[11px] block mt-1 ${isSelected ? 'text-teal-100' : 'text-slate-400'}`}>
+                        Maks {u.max_guests} Tetamu • {u.bedrooms} Bilik • {u.gallery?.length || 0} Foto
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Form Container */}
+            <form onSubmit={handleSaveUnitDetails} className="space-y-6">
+              {/* SECTION 1: BUTIRAN ASAS & SPESIFIKASI */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-teal-600" />
+                      1. Butiran Asas Unit: {currentEditUnit.name}
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Maklumat ini akan dipaparkan di katalog pilihan unit dan kad tempahan tetamu.
+                    </p>
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl font-bold text-xs bg-teal-700 hover:bg-teal-800 text-white shadow-sm transition flex items-center gap-1.5"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Simpan Perubahan
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Nama Unit Kediaman *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={currentEditUnit.name}
+                      onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'name', e.target.value)}
+                      placeholder="cth: Rumah Utama Keluarga (4 Bilik)"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Label / Badge Khas (Pilihan)
+                    </label>
+                    <input
+                      type="text"
+                      value={currentEditUnit.badge || ''}
+                      onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'badge', e.target.value)}
+                      placeholder="cth: Pilihan Keluarga & Kenduri"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Tagline / Ringkasan Pantas *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={currentEditUnit.tagline}
+                    onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'tagline', e.target.value)}
+                    placeholder="cth: Rumah Luas 4 Bilik Tidur Berhawa Dingin untuk Percutian & Acara Keluarga"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Penerangan Lengkap Unit (Description) *
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={currentEditUnit.description}
+                    onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'description', e.target.value)}
+                    placeholder="Terangkan secara lengkap tentang ruang, suasana, anjung dan kelebihan unit ini..."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 leading-relaxed"
+                  />
+                </div>
+
+                {/* Spesifikasi Kapasiti */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-teal-600" />
+                      Maksimum Tetamu (Orang)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      required
+                      value={currentEditUnit.max_guests}
+                      onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'max_guests', Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold text-base bg-white"
+                    />
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <BedDouble className="w-3.5 h-3.5 text-teal-600" />
+                      Bilangan Bilik Tidur
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      required
+                      value={currentEditUnit.bedrooms}
+                      onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'bedrooms', Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold text-base bg-white"
+                    />
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Bath className="w-3.5 h-3.5 text-teal-600" />
+                      Bilangan Bilik Air
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      required
+                      value={currentEditUnit.bathrooms}
+                      onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'bathrooms', Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold text-base bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Kadar Harga Sewaan */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5 text-teal-600" />
+                      Kadar Hari Biasa (Isn - Kha) (RM)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      required
+                      value={currentEditUnit.base_weekday_rate}
+                      onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'base_weekday_rate', Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold text-base bg-white"
+                    />
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5 text-teal-600" />
+                      Kadar Hujung Minggu (Jum - Ahd) (RM)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      required
+                      value={currentEditUnit.weekend_rate}
+                      onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'weekend_rate', Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold text-base bg-white"
+                    />
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+                      Deposit Keselamatan (RM)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      required
+                      value={currentEditUnit.security_deposit}
+                      onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'security_deposit', Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold text-base bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Gambar Utama / Featured Image */}
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Foto Paparan Utama (Featured Image) *
+                  </label>
+                  <div className="flex flex-col md:flex-row gap-5 items-start">
+                    {/* Live Thumbnail Preview */}
+                    <div className="w-full md:w-56 h-36 rounded-xl overflow-hidden border-2 border-slate-200 bg-slate-200 flex-shrink-0 relative shadow-sm">
+                      {currentEditUnit.featured_image ? (
+                        <img
+                          src={currentEditUnit.featured_image}
+                          alt={currentEditUnit.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                          Tiada Gambar
+                        </div>
+                      )}
+                      <span className="absolute bottom-1.5 left-1.5 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                        Muka Hadapan
+                      </span>
+                    </div>
+
+                    {/* Inputs */}
+                    <div className="space-y-3 flex-1 w-full">
+                      <div>
+                        <span className="text-xs text-slate-500 block mb-1">Pautan URL Gambar:</span>
+                        <input
+                          type="url"
+                          required
+                          value={currentEditUnit.featured_image}
+                          onChange={(e) => handleUpdateUnitField(currentEditUnit.id, 'featured_image', e.target.value)}
+                          placeholder="https://images.unsplash.com/..."
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+
+                      <div>
+                        <span className="text-xs text-slate-500 block mb-1">Atau muat naik fail imej dari telefon / komputer:</span>
+                        <label className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer shadow-sm transition">
+                          <Upload className="w-3.5 h-3.5 text-teal-600" />
+                          <span>Pilih Fail Imej</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFeaturedImageUpload(e, currentEditUnit.id)}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: GALERI FOTO UNIT */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+                  <div>
+                    <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-teal-600" />
+                      2. Galeri Foto: {currentEditUnit.name} ({currentEditUnit.gallery?.length || 0} Foto)
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Foto-foto ini akan dipaparkan secara interaktif di bahagian Galeri apabila tetamu memilih unit ini.
+                    </p>
+                  </div>
+                </div>
+
+                {/* FORM TAMBAH FOTO BAHARU */}
+                <div className="p-5 sm:p-6 rounded-2xl bg-teal-50/60 border-2 border-dashed border-teal-200 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <PlusCircle className="w-4 h-4 text-teal-700" />
+                    <span className="font-extrabold text-sm text-teal-900">
+                      Tambah Foto Baharu ke Galeri Unit
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Tajuk Foto *
+                      </label>
+                      <input
+                        type="text"
+                        value={newPhotoTitle}
+                        onChange={(e) => setNewPhotoTitle(e.target.value)}
+                        placeholder="cth: Bilik Tidur Utama Master Suite"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-semibold text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Kategori Foto *
+                      </label>
+                      <select
+                        value={newPhotoCategory}
+                        onChange={(e) => setNewPhotoCategory(e.target.value as any)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      >
+                        <option value="bilik">Bilik Tidur (bilik)</option>
+                        <option value="ruang">Ruang Tamu & Bersantai (ruang)</option>
+                        <option value="dapur">Dapur & Ruang Makan (dapur)</option>
+                        <option value="luaran">Laman, Anjung & Parkir (luaran)</option>
+                        <option value="kolam">Kolam Renang / Santai (kolam)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Pautan URL Gambar *
+                      </label>
+                      <input
+                        type="url"
+                        value={newPhotoUrl}
+                        onChange={(e) => setNewPhotoUrl(e.target.value)}
+                        placeholder="https://images.unsplash.com/..."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Atau Muat Naik Fail Imej
+                      </label>
+                      <label className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 cursor-pointer shadow-sm transition">
+                        <Upload className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Pilih Fail Gambar</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleNewGalleryPhotoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Keterangan / Penerangan Ringkas Foto (Pilihan)
+                    </label>
+                    <input
+                      type="text"
+                      value={newPhotoDesc}
+                      onChange={(e) => setNewPhotoDesc(e.target.value)}
+                      placeholder="cth: Dilengkapi katil King bersaiz hotel dengan pendingin hawa sejuk."
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+
+                  {/* Live Preview of New Photo */}
+                  {newPhotoUrl && (
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-teal-200">
+                      <div className="w-20 h-14 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
+                        <img src={newPhotoUrl} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="text-xs">
+                        <span className="font-bold text-slate-800 block">{newPhotoTitle || 'Foto Baharu'}</span>
+                        <span className="text-teal-600 font-semibold uppercase text-[10px]">Kategori: {newPhotoCategory}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleAddGalleryPhoto(currentEditUnit.id)}
+                      className="px-5 py-2.5 rounded-xl font-bold text-xs bg-teal-700 hover:bg-teal-800 text-white shadow-md transition flex items-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" /> Masukkan Foto ke Galeri Unit Ini
+                    </button>
+                  </div>
+                </div>
+
+                {/* SENARAI GALERI SEDIA ADA */}
+                <div>
+                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-3">
+                    Koleksi Foto Sedia Ada ({currentEditUnit.gallery?.length || 0})
+                  </span>
+
+                  {(!currentEditUnit.gallery || currentEditUnit.gallery.length === 0) ? (
+                    <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-200 text-slate-400 text-xs">
+                      Belum ada foto dalam galeri unit ini. Sila tambah foto menggunakan borang di atas.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {currentEditUnit.gallery.map((photo) => (
+                        <div
+                          key={photo.id}
+                          className="group relative bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between"
+                        >
+                          <div className="relative h-44 w-full bg-slate-200 overflow-hidden">
+                            <img
+                              src={photo.imageUrl}
+                              alt={photo.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                            />
+                            <span className="absolute top-2 left-2 bg-slate-900/80 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                              {photo.category}
+                            </span>
+                          </div>
+
+                          <div className="p-3.5 flex-1 flex flex-col justify-between space-y-2">
+                            <div>
+                              <h5 className="font-extrabold text-sm text-slate-800 leading-snug">
+                                {photo.title}
+                              </h5>
+                              <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                                {photo.description}
+                              </p>
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between">
+                              <span className="text-[10px] font-mono text-slate-400 truncate max-w-[140px]">
+                                ID: #{photo.id}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteGalleryPhoto(currentEditUnit.id, photo.id)}
+                                className="px-2.5 py-1 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-100 transition flex items-center gap-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Padam Foto
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ACTION BAR AT BOTTOM */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-sm bg-teal-700 hover:bg-teal-800 text-white shadow-lg transition flex items-center justify-center gap-2"
+                >
+                  <Save className="w-4 h-4" /> Simpan Semua Perubahan Unit & Galeri
+                </button>
+
+                {units.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteUnit(currentEditUnit.id)}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Padam Unit Ini
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* TAB 4: UNITS RATES MANAGEMENT */}
         {activeTab === 'units' && (
           <form onSubmit={handleSaveAll} className="space-y-6">
             <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6">
