@@ -69,7 +69,13 @@ export default function LiveCalendarBooking({
   // Guest input form (No login needed!)
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [icNumber, setIcNumber] = useState('');
+  const [guestAddress, setGuestAddress] = useState('');
+  const [stayPurpose, setStayPurpose] = useState('Majlis Keraian/Kenduri');
   const [guestCount, setGuestCount] = useState(selectedUnit.max_guests > 4 ? 4 : 2);
+  const [refundBankInfo, setRefundBankInfo] = useState('');
+  const [checklistAgreed, setChecklistAgreed] = useState(true);
   const [notes, setNotes] = useState('');
   const [paymentType, setPaymentType] = useState<'DEPOSIT' | 'FULL'>('DEPOSIT');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -224,6 +230,11 @@ export default function LiveCalendarBooking({
         unit_name: selectedUnit.name,
         guest_name: guestName,
         guest_phone: guestPhone,
+        guest_email: guestEmail.trim() || undefined,
+        ic_number: icNumber.trim() || undefined,
+        guest_address: guestAddress.trim() || undefined,
+        stay_purpose: stayPurpose,
+        refund_bank_info: refundBankInfo.trim() || undefined,
         guest_count: guestCount,
         check_in: checkInDate!,
         check_out: checkOutDate!,
@@ -247,6 +258,18 @@ export default function LiveCalendarBooking({
       const existing = JSON.parse(localStorage.getItem('homestay_bookings') || '[]');
       existing.unshift(newBooking);
       localStorage.setItem('homestay_bookings', JSON.stringify(existing));
+
+      // Asynchronously sync to Google Sheets webhook if configured
+      if (settings.google_sheets_webhook_url) {
+        fetch('/api/booking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            booking: newBooking,
+            webhookUrl: settings.google_sheets_webhook_url,
+          }),
+        }).catch((e) => console.warn('Background sync error:', e));
+      }
 
       // Trigger celebration confetti
       confetti({
@@ -582,14 +605,19 @@ export default function LiveCalendarBooking({
             <form onSubmit={handleSubmitBooking} noValidate className="space-y-6">
               {/* Guest Details: NO ACCOUNT REQUIRED */}
               <div className="space-y-4">
-                <h4 className="text-sm font-bold uppercase text-slate-700 tracking-wider">
-                  1. Maklumat Tetamu (Tanpa Daftar Akaun)
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold uppercase text-slate-700 tracking-wider">
+                    1. Maklumat Tetamu (Tanpa Daftar Akaun)
+                  </h4>
+                  <span className="text-[11px] text-teal-700 font-semibold bg-teal-50 px-2.5 py-0.5 rounded-full">
+                    Kemas kini automatik ke Google Sheets
+                  </span>
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Nama Penuh <span className="text-rose-500">*</span>
+                      Nama Penuh (seperti dalam kad pengenalan) <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -603,7 +631,23 @@ export default function LiveCalendarBooking({
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Nombor WhatsApp <span className="text-rose-500">*</span>
+                      Nombor Kad Pengenalan (tanpa tanda -)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={14}
+                      placeholder="Cth: 880101105555"
+                      value={icNumber}
+                      onChange={(e) => setIcNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm font-medium font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Nombor WhatsApp / Telefon <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="tel"
@@ -614,12 +658,56 @@ export default function LiveCalendarBooking({
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm font-medium"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Anggaran Bilangan Tetamu (Maks: {selectedUnit.max_guests} orang)
+                      Alamat Emel (Pilihan)
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="Cth: ahmad@gmail.com"
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Alamat Penuh Penyewa (Pilihan)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Cth: No. 12, Jalan Indah 3, Taman Desa, Pulau Indah"
+                    value={guestAddress}
+                    onChange={(e) => setGuestAddress(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm font-medium"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Tujuan Menginap di JADI Homestay
+                    </label>
+                    <select
+                      value={stayPurpose}
+                      onChange={(e) => setStayPurpose(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm font-medium bg-white"
+                    >
+                      <option value="Majlis Keraian/Kenduri">Majlis Keraian / Kenduri</option>
+                      <option value="Melawat Saudara/Keluarga">Melawat Saudara / Ziarah</option>
+                      <option value="Bekerja">Bekerja (Westport / Industri)</option>
+                      <option value="Kursus/Bengkel">Kursus / Bengkel</option>
+                      <option value="Percutian/Santai">Percutian / Santai</option>
+                      <option value="Lain-lain">Lain-lain Tujuan</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Bil. Tetamu (Maks: {selectedUnit.max_guests} orang)
                     </label>
                     <input
                       type="number"
@@ -633,11 +721,11 @@ export default function LiveCalendarBooking({
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Catatan / Permintaan Khas (Pilihan)
+                      Catatan / Permintaan Khas
                     </label>
                     <input
                       type="text"
-                      placeholder="Cth: Bawa arang BBQ, check-in jam 4 petang"
+                      placeholder="Cth: Check-in jam 4 petang"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-600 text-sm font-medium"
@@ -850,23 +938,37 @@ export default function LiveCalendarBooking({
                     </label>
                   </div>
 
-                  {/* Option to send directly in WhatsApp */}
-                  <div className="mt-3 flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  {/* Maklumat Bank untuk Pemulangan Deposit */}
+                  <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Maklumat Akaun Bank untuk Pemulangan Deposit Keselamatan (Pilihan)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Cth: 1550 3225 4143 (Maybank) - Ahmad Farhan"
+                      value={refundBankInfo}
+                      onChange={(e) => setRefundBankInfo(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-600"
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      Deposit keselamatan akan dipindahkan semula ke akaun ini dalam tempoh 24 jam selepas check-out.
+                    </p>
+                  </div>
+
+                  {/* Senarai Semak & Perakuan Syarat */}
+                  <div className="mt-3 flex items-start gap-2.5 p-3 rounded-xl bg-teal-50/70 border border-teal-200">
                     <input
                       type="checkbox"
-                      id="receipt-whatsapp-toggle"
-                      checked={sendReceiptViaWhatsApp}
-                      onChange={(e) => {
-                        setSendReceiptViaWhatsApp(e.target.checked);
-                        if (e.target.checked) setFormError(null);
-                      }}
-                      className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500 cursor-pointer"
+                      id="terms-checklist-toggle"
+                      checked={checklistAgreed}
+                      onChange={(e) => setChecklistAgreed(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 text-teal-600 rounded focus:ring-teal-500 cursor-pointer"
                     />
                     <label
-                      htmlFor="receipt-whatsapp-toggle"
-                      className="text-xs text-slate-700 font-semibold cursor-pointer select-none"
+                      htmlFor="terms-checklist-toggle"
+                      className="text-xs text-slate-700 font-medium cursor-pointer select-none leading-relaxed"
                     >
-                      Saya akan lampirkan gambar resit terus di dalam WhatsApp kepada pemilik
+                      Saya mengesahkan semua maklumat yang diberikan adalah betul serta bersetuju dengan syarat dan peraturan menginap di <b>JADI Homestay</b>.
                     </label>
                   </div>
                 </div>

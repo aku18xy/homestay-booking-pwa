@@ -16,6 +16,8 @@ export const DEFAULT_SETTINGS: HomestaySettings = {
   check_in_time: "3:00 PM",
   check_out_time: "12:00 PM",
   admin_pin: "8899",
+  google_sheets_url: "https://docs.google.com/spreadsheets/d/1EEwLFpLNMxGuqbcXj5hl5-fSb82oecSfZ9uj6DceIAk/edit",
+  google_sheets_webhook_url: "",
 };
 
 export const INITIAL_UNITS: HomestayUnit[] = [

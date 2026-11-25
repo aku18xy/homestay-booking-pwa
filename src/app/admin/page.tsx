@@ -30,9 +30,13 @@ import {
   Tag,
   AlertCircle,
   PlusCircle,
+  Download,
+  FileSpreadsheet,
+  RefreshCw,
 } from 'lucide-react';
 import { Booking, HomestaySettings, BlockedDate, HomestayUnit, GalleryItem } from '@/types';
 import { DEFAULT_SETTINGS, INITIAL_UNITS, INITIAL_BLOCKED_DATES } from '@/lib/mockData';
+import { IMPORTED_GOOGLE_SHEETS_BOOKINGS } from '@/lib/importedGoogleSheetsBookings';
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -371,6 +375,73 @@ export default function AdminPage() {
     alert('Semua kadar harga unit dan tetapan berjaya disimpan!');
   };
 
+  // Import historical Google Sheets bookings
+  const handleImportGoogleSheets = () => {
+    const existingCodes = new Set(bookings.map((b) => b.booking_code));
+    const newItems = IMPORTED_GOOGLE_SHEETS_BOOKINGS.filter((b) => !existingCodes.has(b.booking_code));
+    if (newItems.length === 0) {
+      alert('Semua rekod daripada Google Sheets telah pun ada di dalam dashboard anda.');
+      return;
+    }
+    const updated = [...newItems, ...bookings];
+    setBookings(updated);
+    localStorage.setItem('homestay_bookings', JSON.stringify(updated));
+    setSaveSuccessMsg(`Berjaya mengimport ${newItems.length} rekod tempahan daripada pangkalan data Google Sheets!`);
+    setTimeout(() => setSaveSuccessMsg(null), 3500);
+  };
+
+  // Export current bookings to CSV formatted like Google Sheets
+  const handleExportCSV = () => {
+    const headers = [
+      'Timestamp',
+      'Email Address',
+      'Nama penuh seperti dalam kad pengenalan:',
+      'Nombor kad pengenalan (tanpa tanda -):',
+      'Nombor telefon:',
+      'Email:',
+      'Alamat penuh:',
+      'Tarikh daftar masuk (check in):',
+      'Tarikh daftar keluar (check out):',
+      'Jumlah orang yang bakal menginap di Jadi Homestay (termasuk kanak-kanak): ',
+      'Tujuan menginap di Jadi Homestay:',
+      'Sila muat naik gambar kad pengenalan penyewa (dalam bentuk *.jpg, *.jpeg, *.png, *.pdf)',
+      'Sila muat naik resit bayaran deposit Jadi Homestay:',
+      'Nyatakan nombor akaun bank, nama dan bank untuk pemulangan deposit. Muat naik QR code jika ada:',
+      'Unit Homestay & Kod Tempahan',
+      'Jumlah Bayaran (RM)',
+      'Status Tempahan'
+    ];
+
+    const rows = bookings.map((b) => [
+      `"${b.created_at || ''}"`,
+      `"${b.guest_email || ''}"`,
+      `"${b.guest_name || ''}"`,
+      `"${b.ic_number || ''}"`,
+      `"${b.guest_phone || ''}"`,
+      `"${b.guest_email || ''}"`,
+      `"${b.guest_address || ''}"`,
+      `"${b.check_in || ''}"`,
+      `"${b.check_out || ''}"`,
+      `"${b.guest_count || ''}"`,
+      `"${b.stay_purpose || ''}"`,
+      `"${b.ic_image_url || ''}"`,
+      `"${b.payment_receipt_url || ''}"`,
+      `"${b.refund_bank_info || ''}"`,
+      `"${b.unit_name} (${b.booking_code})"`,
+      `"${b.amount_paid || b.total_amount}"`,
+      `"${b.status}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `JADI_Homestay_Bookings_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Filter bookings
   const filteredBookings =
     selectedUnitFilter === 'all'
@@ -530,18 +601,18 @@ export default function AdminPage() {
         {/* TAB 1: BOOKINGS MANAGEMENT */}
         {activeTab === 'bookings' && (
           <div className="space-y-6">
-            {/* Filter by Unit */}
-            <div className="flex items-center justify-between flex-wrap gap-3 bg-white p-4 rounded-2xl border border-slate-200">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                <Filter className="w-4 h-4 text-teal-600" />
-                Tapis Mengikut Unit:
-              </div>
-              <div className="flex flex-wrap gap-2">
+            {/* Filter by Unit and Google Sheets Action Buttons */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mr-1">
+                  <Filter className="w-3.5 h-3.5 text-teal-600" />
+                  Tapis:
+                </div>
                 <button
                   onClick={() => setSelectedUnitFilter('all')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                     selectedUnitFilter === 'all'
-                      ? 'bg-teal-700 text-white'
+                      ? 'bg-teal-700 text-white shadow-sm'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
@@ -555,7 +626,7 @@ export default function AdminPage() {
                       onClick={() => setSelectedUnitFilter(u.id)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                         selectedUnitFilter === u.id
-                          ? 'bg-teal-700 text-white'
+                          ? 'bg-teal-700 text-white shadow-sm'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -563,6 +634,28 @@ export default function AdminPage() {
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Google Sheets Actions */}
+              <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                <button
+                  type="button"
+                  onClick={handleImportGoogleSheets}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 transition flex items-center gap-1.5 shadow-sm"
+                  title="Import rekod dari pangkalan data Google Sheets"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  Import Google Sheets ({IMPORTED_GOOGLE_SHEETS_BOOKINGS.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-300 transition flex items-center gap-1.5 shadow-sm"
+                  title="Eksport senarai tempahan ke format CSV"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-600" />
+                  Eksport CSV
+                </button>
               </div>
             </div>
 
@@ -684,6 +777,42 @@ export default function AdminPage() {
                         )}
                       </div>
                     </div>
+
+                    {/* Google Sheets Integrated Data: IC, Stay Purpose, Refund Bank, Address */}
+                    {(booking.ic_number || booking.stay_purpose || booking.guest_address || booking.refund_bank_info || booking.guest_email) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs bg-slate-50/80 p-3 rounded-xl border border-slate-200">
+                        {booking.ic_number && (
+                          <div>
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase">No. Kad Pengenalan:</span>
+                            <span className="font-mono font-bold text-slate-800">{booking.ic_number}</span>
+                          </div>
+                        )}
+                        {booking.stay_purpose && (
+                          <div>
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase">Tujuan Menginap:</span>
+                            <span className="font-bold text-teal-800">{booking.stay_purpose}</span>
+                          </div>
+                        )}
+                        {booking.guest_email && (
+                          <div>
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase">Emel:</span>
+                            <span className="font-medium text-slate-700">{booking.guest_email}</span>
+                          </div>
+                        )}
+                        {booking.refund_bank_info && (
+                          <div>
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase">Akaun Pemulangan Deposit:</span>
+                            <span className="font-semibold text-emerald-800">{booking.refund_bank_info}</span>
+                          </div>
+                        )}
+                        {booking.guest_address && (
+                          <div className="sm:col-span-2">
+                            <span className="text-slate-400 font-semibold block text-[10px] uppercase">Alamat Penuh:</span>
+                            <span className="text-slate-600">{booking.guest_address}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {booking.notes && (
                       <div className="text-xs bg-amber-50/60 p-2.5 rounded-xl border border-amber-200/60 text-slate-700">
@@ -1577,6 +1706,60 @@ export default function AdminPage() {
                   onChange={(e) => setSettings({ ...settings, admin_pin: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-sm"
                 />
+              </div>
+            </div>
+
+            {/* GOOGLE SHEETS & DATABASE SYNC INTEGRATION */}
+            <div className="pt-6 border-t border-slate-200 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                    <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                    Integrasi Pangkalan Data Google Sheets
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Sambungkan webapp secara terus ke Google Sheets sedia ada pemilik bagi rekod masa nyata.
+                  </p>
+                </div>
+                <a
+                  href={settings.google_sheets_url || 'https://docs.google.com/spreadsheets/d/1EEwLFpLNMxGuqbcXj5hl5-fSb82oecSfZ9uj6DceIAk/edit'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold transition w-fit"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Buka Google Sheets Pemilik
+                </a>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200 space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Pautan Webhook Google Apps Script (Untuk Tambah Baris Automatik)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    value={settings.google_sheets_webhook_url || ''}
+                    onChange={(e) => setSettings({ ...settings, google_sheets_webhook_url: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Setiap kali tetamu menghantar tempahan di webapp ini, data akan diposkan secara automatik ke fail Google Sheets pemilik.
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-emerald-200/60 flex items-center justify-between flex-wrap gap-2 text-xs">
+                  <span className="text-slate-600 font-medium">
+                    Skrip webhook sedia dipasang: <code>google-sheets-integration/Code.gs</code>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleImportGoogleSheets}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Import 16 Rekod Lama ke Dashboard
+                  </button>
+                </div>
               </div>
             </div>
 

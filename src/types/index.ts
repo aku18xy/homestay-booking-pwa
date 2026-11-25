@@ -59,6 +59,11 @@ export interface Booking {
   balance_due: number;
   payment_method: string;
   payment_receipt_url?: string;
+  ic_number?: string;
+  guest_address?: string;
+  stay_purpose?: string;
+  refund_bank_info?: string;
+  ic_image_url?: string;
   status: BookingStatus;
   lock_expires_at?: string;
   notes?: string;
@@ -100,6 +105,8 @@ export interface HomestaySettings {
   check_in_time: string;
   check_out_time: string;
   admin_pin: string;
+  google_sheets_url?: string;
+  google_sheets_webhook_url?: string;
 }
 
 export interface PriceBreakdown {
