@@ -1,7 +1,7 @@
 {
-  "name": "Jadi Homestay Pulau Indah",
-  "short_name": "Jadi Homestay",
-  "description": "Aplikasi Tempahan Pantas Jadi Homestay Pulau Indah, Klang, Selangor.",
+  "name": "JADI Homestay Pulau Indah",
+  "short_name": "JADI Homestay",
+  "description": "Aplikasi Tempahan Pantas JADI Homestay Pulau Indah, Klang, Selangor.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

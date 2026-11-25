@@ -26,7 +26,7 @@ export default function FAQ({ settings }: FAQProps) {
     },
     {
       q: 'Adakah ruang parkir luas dan berpagar?',
-      a: 'Ya! Setiap unit di Jadi Homestay Pulau Indah mempunyai kawasan parkir sendiri yang selamat, berpagar dan boleh memuatkan kenderaan dengan selesa.',
+      a: 'Ya! Setiap unit di JADI Homestay Pulau Indah mempunyai kawasan parkir sendiri yang selamat, berpagar dan boleh memuatkan kenderaan dengan selesa.',
     },
     {
       q: 'Berapakah kapasiti maksimum tetamu yang dibenarkan?',
